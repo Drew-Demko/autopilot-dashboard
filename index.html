@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Autopilot Board</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Autopilot">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone-width column; the day strip is the centrepiece, numbers below it, live games last. */
+:root {
+  --bg: #f3f6f4; --panel: #ffffff; --ink: #14201a; --muted: #5b6b62; --line: #dbe3de;
+  --green: #1f8a58; --green-soft: #d6efe2; --amber: #b7791f; --amber-soft: #f8ecd5; --red: #c0392b; --red-soft: #f7dcd8;
+  --night: #e3e8f2; --now: #14201a;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
+    --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
+    --night: #1b2233; --now: #e8efe9; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
+  --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
+  --night: #1b2233; --now: #e8efe9; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: calc(env(safe-area-inset-top, 0px) + 14px) calc(env(safe-area-inset-bottom, 0px) + 28px);
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { font: 700 30px/1 var(--display); letter-spacing: .01em; margin: 0; }
+h2 { font: 600 15px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.pill { font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.ok { background: var(--green-soft); color: var(--green); }
+.warn { background: var(--amber-soft); color: var(--amber); }
+.bad { background: var(--red-soft); color: var(--red); }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+.big { font: 700 26px/1.1 var(--display); text-wrap: balance; }
+.sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+/* day strip */
+.strip { position: relative; height: 54px; margin-top: 12px; border-radius: 8px; background: var(--bg); overflow: hidden; }
+.strip .night { position: absolute; top: 0; bottom: 0; background: var(--night); }
+.strip .blk { position: absolute; top: 9px; bottom: 9px; background: var(--green); border-radius: 5px; opacity: .9; }
+.strip .blk.past { opacity: .3; }
+.strip .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--now); }
+.ticks { position: relative; height: 18px; font-size: 12px; color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+ul.blocks { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+ul.blocks li { display: grid; grid-template-columns: 7.2em 1fr; gap: 10px; align-items: baseline; }
+ul.blocks .when { font: 600 17px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+ul.blocks .what { font-size: 14px; color: var(--muted); min-width: 0; }
+ul.blocks li.now .when { color: var(--green); }
+ul.blocks li.past { opacity: .45; }
+.moon { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-left: 6px; }
+/* numbers */
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile .k { font-size: 13px; color: var(--muted); }
+.tile .v { font: 700 28px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.pos { color: var(--green); } .neg { color: var(--red); }
+.edge { margin-top: 12px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.bar { height: 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; margin: 10px 0 6px; }
+.bar > div { height: 100%; background: var(--green); border-radius: 999px; }
+.row { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; color: var(--muted); }
+.alert { background: var(--green-soft); color: var(--green); font-weight: 600; padding: 10px 12px; border-radius: 10px; margin-top: 10px; }
+/* windows: tappable rows + strip blocks */
+details.blk-row { border-top: 1px solid var(--line); }
+details.blk-row:first-child { border-top: 0; }
+details.blk-row summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 7.4em 1fr auto; gap: 10px; align-items: baseline; padding: 9px 0; }
+details.blk-row summary::-webkit-details-marker { display: none; }
+details.blk-row summary::after { content: "+"; color: var(--muted); font-weight: 600; }
+details.blk-row[open] summary::after { content: "–"; }
+details.blk-row .when { font: 600 17px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+details.blk-row.now .when { color: var(--green); }
+details.blk-row .what { font-size: 14px; color: var(--muted); min-width: 0; }
+details.blk-row ul { list-style: none; margin: 0 0 10px; padding: 0 0 0 7.4em; display: grid; gap: 4px; font-size: 14px; }
+details.blk-row ul span { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.strip button.blk { border: 0; padding: 0; cursor: pointer; }
+.strip button.blk:hover, .strip button.blk.sel { opacity: 1; outline: 2px solid var(--ink); outline-offset: 1px; }
+.tip { margin-top: 8px; font-size: 14px; min-height: 1.4em; color: var(--muted); }
+/* current bets + today */
+.bet { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.bet:first-child { border-top: 0; padding-top: 0; }
+.bet .t { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.bet .sc { font: 700 24px/1 var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+.bet .l, .bet .need { grid-column: 1 / -1; font-size: 14px; color: var(--muted); }
+.st { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.st.win { background: var(--green-soft); color: var(--green); } .st.lost { background: var(--red-soft); color: var(--red); } .st.unk { background: var(--amber-soft); color: var(--amber); }
+table.today { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.today td { padding: 7px 0; border-top: 1px solid var(--line); vertical-align: top; }
+table.today tr:first-child td { border-top: 0; }
+table.today td.r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+table.today .m { color: var(--muted); display: block; }
+/* live */
+ul.live { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+ul.live li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+ul.live .t { min-width: 0; overflow-wrap: anywhere; }
+ul.live .sc { font: 700 20px/1 var(--display); font-variant-numeric: tabular-nums; text-align: right; }
+ul.live .m { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+.chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--green-soft); color: var(--green); margin-left: 6px; }
+.empty { color: var(--muted); font-size: 14px; }
+footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+button { font: 600 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+#setup input { width: 100%; font: 15px var(--body); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin: 8px 0; }
+@media (prefers-reduced-motion: no-preference) { .bar > div { transition: width .6s ease; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Autopilot</h1>
+    <span id="state" class="pill warn">Loading…</span>
+  </header>
+
+  <section id="setup" hidden>
+    <h2>Connect</h2>
+    <div>Open this page using the link from Claude (it ends in your private status channel), or paste the channel name:</div>
+    <label for="topic" class="sub">Status channel</label>
+    <input id="topic" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="pm-paper-…-status">
+    <button id="save" type="button">Connect</button>
+  </section>
+
+  <section id="laptop" aria-labelledby="h-laptop">
+    <h2 id="h-laptop">Laptop</h2>
+    <div class="big" id="lt-head">Waiting for Autopilot…</div>
+    <div class="sub" id="lt-sub"></div>
+    <div class="strip" id="strip" aria-hidden="true"></div>
+    <div class="ticks" id="ticks" aria-hidden="true"></div>
+    <div class="legend"><span><i style="background:var(--green)"></i>Betting windows</span><span><i style="background:var(--night)"></i>Overnight (10:30pm–7:30am)</span><span><i style="background:var(--now)"></i>Now</span></div>
+    <div class="tip" id="tip">Tap a green block to see who's playing.</div>
+    <div id="blocks"></div>
+  </section>
+
+  <section aria-labelledby="h-cur">
+    <h2 id="h-cur">Current bets</h2>
+    <div id="cur"></div>
+  </section>
+
+  <section aria-labelledby="h-today">
+    <h2 id="h-today">Today's results</h2>
+    <div id="today"></div>
+  </section>
+
+  <section aria-labelledby="h-money">
+    <h2 id="h-money">Money</h2>
+    <div class="tiles">
+      <div class="tile"><div class="k">Balance</div><div class="v" id="bal">–</div></div>
+      <div class="tile"><div class="k">Profit today</div><div class="v" id="pt">–</div></div>
+      <div class="tile"><div class="k">Profit all time</div><div class="v" id="pa">–</div></div>
+      <div class="tile"><div class="k">Bets settled</div><div class="v" id="nb">–</div></div>
+    </div>
+    <div class="edge" id="edge"></div>
+  </section>
+
+  <section aria-labelledby="h-wd">
+    <h2 id="h-wd">Next withdrawal</h2>
+    <div class="row"><span id="wd-from">–</span><span id="wd-to">–</span></div>
+    <div class="bar" role="progressbar" aria-label="Progress to next withdrawal" aria-valuemin="0" aria-valuemax="100" id="wd-bar"><div id="wd-fill" style="width:0%"></div></div>
+    <div class="row"><span id="wd-pct"></span><span id="wd-banked"></span></div>
+    <div class="alert" id="wd-alert" hidden></div>
+  </section>
+
+  <footer>
+    <span id="updated">–</span>
+    <button id="refresh" type="button">Refresh</button>
+  </footer>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const fmtT = (s) => new Date(s * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(" ", "").toLowerCase();
+  const money = (v, sign) => v == null ? "–" : (sign && v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toFixed(2);
+  const ago = (s) => { const m = Math.round((Date.now() / 1000 - s) / 60); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.floor(m / 60) + " h " + (m % 60) + " min ago"; };
+
+  // Channel: from the link (#channel), remembered on this device.
+  let topic = decodeURIComponent((location.hash || "").slice(1));
+  try { if (topic) localStorage.setItem("ap-topic", topic); else topic = localStorage.getItem("ap-topic") || ""; } catch (e) {}
+  $("save").addEventListener("click", () => {
+    topic = $("topic").value.trim();
+    if (!topic) return;
+    try { localStorage.setItem("ap-topic", topic); } catch (e) {}
+    location.hash = topic; $("setup").hidden = true; load();
+  });
+
+  // Merge every game's windows into "keep the laptop open" blocks.
+  // Merge every game's windows into "keep the laptop open" blocks, leaving out games already bet in that window.
+  function blocks(d) {
+    const iv = [];
+    for (const g of d.games) {
+      const [title, ko, bet] = g;
+      for (const k of ["w1", "w2"]) {
+        const w = d.win && d.win[k];
+        if (!w) continue;
+        if (bet && bet.includes(k === "w1" ? "1" : "2")) continue;      // already bet: not needed any more
+        iv.push({ a: ko + w[0] * 60 - 15 * 60, s: ko + w[0] * 60, b: ko + w[1] * 60, games: [[title, ko]] });
+      }
+    }
+    iv.sort((x, y) => x.a - y.a);
+    const out = [];
+    for (const x of iv) {
+      const last = out[out.length - 1];
+      if (last && x.a <= last.b + 10 * 60) { last.b = Math.max(last.b, x.b); for (const g of x.games) if (!last.games.some((h) => h[0] === g[0])) last.games.push(g); }
+      else out.push({ ...x, games: [...x.games] });
+    }
+    return out;
+  }
+  const gamesText = (gs) => gs.length <= 2 ? gs.map((g) => g[0]).join(", ") : gs.slice(0, 2).map((g) => g[0]).join(", ") + " +" + (gs.length - 2) + " more";
+  function isNight(t) {
+    const d = new Date(t * 1000), m = d.getHours() * 60 + d.getMinutes();
+    return m >= 22 * 60 + 30 || m < 7 * 60 + 30;
+  }
+
+  function render(d) {
+    const now = Date.now() / 1000;
+    const age = now - d.u;
+    const st = $("state");
+    if (age > 45 * 60) { st.className = "pill bad"; st.textContent = "Not running?"; }
+    else { st.className = "pill ok"; st.textContent = (d.mode === "live" ? "Live" : "Shadow") + " · running"; }
+    $("updated").textContent = "Updated " + ago(d.u) + (age > 45 * 60 ? ". Is the Mac open and Autopilot started?" : "");
+
+    // Laptop card
+    const bl = blocks(d).filter((b) => b.b > now);
+    const cur = bl.find((b) => b.a <= now && b.b >= now);
+    const next = bl.find((b) => b.a > now);
+    if (cur) {
+      $("lt-head").textContent = "Keep the laptop open until " + fmtT(cur.b);
+      $("lt-sub").textContent = cur.games.length + " game" + (cur.games.length > 1 ? "s" : "") + " in a betting window now.";
+    } else if (next) {
+      const mins = Math.round((next.a - now) / 60);
+      $("lt-head").textContent = "Open it at " + fmtT(next.a);
+      $("lt-sub").textContent = "Next betting window " + fmtT(next.s) + "–" + fmtT(next.b) + " (" + (mins < 60 ? "in " + mins + " min" : "in " + Math.floor(mins / 60) + " h " + (mins % 60) + " min") + "). It can sleep until then.";
+    } else {
+      $("lt-head").textContent = "Nothing to bet right now";
+      $("lt-sub").textContent = "No betting windows in the schedule. The laptop can sleep.";
+    }
+
+    // Day strip: from 1 hour ago to 20 hours ahead. Finished windows are left out.
+    const live = bl.filter((b) => b.b >= now);
+    const t0 = now - 3600, t1 = now + 20 * 3600, span = t1 - t0;
+    const pct = (t) => Math.max(0, Math.min(100, ((t - t0) / span) * 100));
+    const strip = $("strip"); strip.innerHTML = "";
+    for (let t = Math.floor(t0 / 1800) * 1800; t < t1; t += 1800) {
+      if (!isNight(t)) continue;
+      const n = document.createElement("div"); n.className = "night";
+      n.style.left = pct(t) + "%"; n.style.width = (pct(t + 1800) - pct(t) + 0.2) + "%"; strip.appendChild(n);
+    }
+    live.forEach((b, i) => {
+      if (b.a > t1) return;
+      const el = document.createElement("button"); el.type = "button"; el.className = "blk";
+      el.style.left = pct(b.a) + "%"; el.style.width = Math.max(1.2, pct(b.b) - pct(b.a)) + "%";
+      el.setAttribute("aria-label", fmtT(b.a) + " to " + fmtT(b.b) + ": " + b.games.map((g) => g[0]).join(", "));
+      const show = () => {
+        strip.querySelectorAll(".blk").forEach((x) => x.classList.toggle("sel", x === el));
+        $("tip").textContent = fmtT(b.s) + "–" + fmtT(b.b) + ": " + gamesText(b.games);
+      };
+      el.addEventListener("mouseenter", show);
+      el.addEventListener("click", () => { show(); const row = $("blk-" + i); if (row) { row.open = true; row.scrollIntoView({ block: "nearest", behavior: "smooth" }); } });
+      strip.appendChild(el);
+    });
+    const nl = document.createElement("div"); nl.className = "nowline"; nl.style.left = pct(now) + "%"; strip.appendChild(nl);
+    let ticks = "";
+    for (let t = Math.ceil(t0 / 14400) * 14400; t < t1; t += 14400) {
+      const p = pct(t); if (p < 6 || p > 94) continue;
+      ticks += '<span style="left:' + p + '%">' + new Date(t * 1000).toLocaleTimeString([], { hour: "numeric" }).replace(" ", "").toLowerCase() + "</span>";
+    }
+    $("ticks").innerHTML = ticks;
+
+    const box = $("blocks"); box.innerHTML = "";
+    live.slice(0, 10).forEach((b, i) => {
+      const det = document.createElement("details"); det.className = "blk-row" + (b.a <= now ? " now" : ""); det.id = "blk-" + i;
+      const sm = document.createElement("summary");
+      const w = document.createElement("span"); w.className = "when"; w.textContent = fmtT(b.a) + "–" + fmtT(b.b);
+      const g = document.createElement("span"); g.className = "what"; g.textContent = gamesText(b.games);
+      if (isNight(b.b)) { const n = document.createElement("span"); n.className = "moon"; n.textContent = "overnight"; g.appendChild(n); }
+      sm.append(w, g); det.appendChild(sm);
+      const ul = document.createElement("ul");
+      for (const [title, ko] of b.games) {
+        const li = document.createElement("li"); const k = document.createElement("span"); k.textContent = fmtT(ko);
+        li.append(k, document.createTextNode(title)); ul.appendChild(li);
+      }
+      det.appendChild(ul); box.appendChild(det);
+    });
+    if (!live.length) box.innerHTML = '<div class="empty">No more betting windows today.</div>';
+
+    // Current bets: live score, what it must stay under, winning or not
+    const curBox = $("cur"); curBox.innerHTML = "";
+    if (!d.cur || !d.cur.length) curBox.innerHTML = '<div class="empty">No open bets right now.</div>';
+    for (const b of d.cur || []) {
+      const el = document.createElement("div"); el.className = "bet";
+      const t = document.createElement("div"); t.className = "t"; t.textContent = b.t;
+      const st = document.createElement("span");
+      st.className = "st " + (b.st === "win" ? "win" : b.st === "lost" ? "lost" : "unk");
+      st.textContent = b.st === "win" ? (b.decided ? "Won · awaiting payout" : "Winning") : b.st === "lost" ? "Losing" : "No live score";
+      t.appendChild(st);
+      const sc = document.createElement("div"); sc.className = "sc"; sc.textContent = b.sc || "–";
+      const l = document.createElement("div"); l.className = "l";
+      const per = b.p === "HT" ? "half-time" : b.p === "1H" ? "1st half" : b.p === "2H" ? "2nd half" : (b.p || "");
+      l.textContent = b.l + " · " + money(b.c) + " to win " + money(b.win) + (per ? " · " + per + (b.min && b.p !== "HT" ? " " + b.min + "'" : "") : "");
+      const nd = document.createElement("div"); nd.className = "need"; nd.textContent = b.need || "";
+      el.append(t, sc, l, nd); curBox.appendChild(el);
+    }
+
+    // Today's results
+    const td = $("today");
+    if (!d.done || !d.done.length) td.innerHTML = '<div class="empty">No bets settled yet today.</div>';
+    else {
+      const tb = document.createElement("table"); tb.className = "today";
+      for (const b of d.done) {
+        const tr = document.createElement("tr");
+        const a = document.createElement("td"); a.textContent = b.t;
+        const m = document.createElement("span"); m.className = "m"; m.textContent = b.l + " @ " + Math.round(b.px * 100) + "¢ · " + fmtT(b.at); a.appendChild(m);
+        const r = document.createElement("td"); r.className = "r " + (b.r === "won" ? "pos" : "neg"); r.textContent = (b.r === "won" ? "Won " : "Lost ") + money(b.p, true);
+        tr.append(a, r); tb.appendChild(tr);
+      }
+      const tot = d.done.reduce((x, b) => x + b.p, 0);
+      const tr = document.createElement("tr"); tr.innerHTML = '<td><strong>Total today</strong></td>';
+      const r = document.createElement("td"); r.className = "r " + (tot >= 0 ? "pos" : "neg"); r.textContent = money(Math.round(tot * 100) / 100, true); tr.appendChild(r);
+      tb.appendChild(tr); td.innerHTML = ""; td.appendChild(tb);
+    }
+
+    // Money
+    $("bal").textContent = money(d.bal);
+    const pt = $("pt"); pt.textContent = money(d.pnl_today, true); pt.className = "v " + (d.pnl_today > 0 ? "pos" : d.pnl_today < 0 ? "neg" : "");
+    const pa = $("pa"); pa.textContent = money(d.pnl, true); pa.className = "v " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
+    $("nb").textContent = d.n + (d.lost ? " · " + d.lost + " lost" : " · 0 lost");
+    $("edge").textContent = "Is it working? " + (d.edge || "");
+
+    // Withdrawal
+    const wd = d.wd;
+    if (wd) {
+      $("wd-from").textContent = "Base " + money(wd.base);
+      $("wd-to").textContent = "Withdraw at " + money(wd.target);
+      const p = Math.round((wd.pct || 0) * 100);
+      $("wd-fill").style.width = p + "%"; $("wd-bar").setAttribute("aria-valuenow", p);
+      $("wd-pct").textContent = "Balance " + money(d.bal) + " · " + p + "% of the way";
+      $("wd-banked").textContent = wd.banked ? money(wd.banked) + " banked" : "";
+      const al = $("wd-alert");
+      if (wd.pending) { al.hidden = false; al.textContent = "Withdraw " + money(wd.pending) + " now in the Polymarket app."; } else al.hidden = true;
+    }
+
+  }
+
+  let last = null;
+  async function load() {
+    if (!topic) { $("setup").hidden = false; $("state").textContent = "Not connected"; return; }
+    try {
+      const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic) + "/json?poll=1&since=12h", { cache: "no-store" });
+      const lines = (await r.text()).trim().split("\n").filter(Boolean);
+      let d = null;
+      for (let i = lines.length - 1; i >= 0 && !d; i--) {
+        try { const ev = JSON.parse(lines[i]); if (ev.event === "message") d = JSON.parse(ev.message); } catch (e) {}
+      }
+      if (!d) { $("state").className = "pill bad"; $("state").textContent = "No updates"; $("lt-head").textContent = "No status from Autopilot in the last 12 hours"; $("lt-sub").textContent = "Start Autopilot on the Mac; this page fills in within a minute."; return; }
+      last = d; render(d);
+    } catch (e) {
+      $("state").className = "pill warn"; $("state").textContent = "Offline";
+      $("updated").textContent = "Couldn't reach the status channel. Check your connection.";
+      if (last) render(last);
+    }
+  }
+  $("refresh").addEventListener("click", load);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  setInterval(() => { if (!document.hidden) load(); }, 60000);
+  setInterval(() => { if (last && !document.hidden) render(last); }, 30000);
+  load();
+})();
+</script>
+</body>
+</html>
