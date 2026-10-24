@@ -235,10 +235,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
   function render(d) {
     const now = Date.now() / 1000;
     const age = now - d.u;
-    const st = $("state");
-    if (age > 45 * 60) { st.className = "pill bad"; st.textContent = "Not running?"; }
-    else { st.className = "pill ok"; st.textContent = (d.mode === "live" ? "Live" : "Shadow") + " · running"; }
-    $("updated").textContent = "Updated " + ago(d.u) + (age > 45 * 60 ? ". Is the Mac open and Autopilot started?" : "");
+    $("updated").textContent = "Updated " + ago(d.u) + (age > 15 * 60 ? " · tap Refresh for the latest" : "");
 
     // Laptop card
     const bl = blocks(d).filter((b) => b.b > now);
@@ -362,28 +359,52 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 
   }
 
-  let last = null;
+  // ON DEMAND (Oct 24): opening the page or tapping Refresh pings Autopilot on the request channel; it answers
+  // with one fresh status within a few seconds. Nothing is sent on a timer.
+  let last = null, asking = false, lastAsk = 0;
+  const pill = (cls, text) => { $("state").className = "pill " + cls; $("state").textContent = text; };
+  const ntfy = (t) => "https://ntfy.sh/" + encodeURIComponent(t);
+
+  async function latest(sinceArg) {
+    const r = await fetch(ntfy(topic) + "/json?poll=1&since=" + sinceArg, { cache: "no-store" });
+    const lines = (await r.text()).trim().split("\n").filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try { const ev = JSON.parse(lines[i]); if (ev.event === "message") return JSON.parse(ev.message); } catch (e) {}
+    }
+    return null;
+  }
+
   async function load() {
-    if (!topic) { $("setup").hidden = false; $("state").textContent = "Not connected"; return; }
+    if (!topic) { $("setup").hidden = false; pill("warn", "Not connected"); return; }
+    if (asking || Date.now() - lastAsk < 8000) return;           // one request at a time
+    asking = true; lastAsk = Date.now();
+    pill("warn", "Updating…"); $("refresh").disabled = true;
     try {
-      const r = await fetch("https://ntfy.sh/" + encodeURIComponent(topic) + "/json?poll=1&since=12h", { cache: "no-store" });
-      const lines = (await r.text()).trim().split("\n").filter(Boolean);
+      if (!last) { const d0 = await latest("12h"); if (d0) { last = d0; render(d0); } }   // show something right away
+      const asked = Math.floor(Date.now() / 1000) - 2;
+      await fetch(ntfy(topic + "-req"), { method: "POST", body: "refresh", headers: { Priority: "min" } });
       let d = null;
-      for (let i = lines.length - 1; i >= 0 && !d; i--) {
-        try { const ev = JSON.parse(lines[i]); if (ev.event === "message") d = JSON.parse(ev.message); } catch (e) {}
+      for (let i = 0; i < 12 && !d; i++) {                        // wait up to ~24 s for Autopilot's answer
+        await new Promise((ok) => setTimeout(ok, 2000));
+        const x = await latest(String(asked));
+        if (x && x.u >= asked) d = x;
       }
-      if (!d) { $("state").className = "pill bad"; $("state").textContent = "No updates"; $("lt-head").textContent = "No status from Autopilot in the last 12 hours"; $("lt-sub").textContent = "Start Autopilot on the Mac; this page fills in within a minute."; return; }
-      last = d; render(d);
+      if (d) { last = d; render(d); pill("ok", (d.mode === "live" ? "Live" : "Shadow") + " · just updated"); }
+      else {
+        pill("bad", "No answer");
+        $("updated").textContent = "Autopilot didn't answer: the Mac may be asleep or Autopilot closed." + (last ? " Showing the update from " + ago(last.u) + "." : "");
+        if (!last) { $("lt-head").textContent = "No status from Autopilot yet"; $("lt-sub").textContent = "Start Autopilot on the Mac, then tap Refresh."; }
+      }
     } catch (e) {
-      $("state").className = "pill warn"; $("state").textContent = "Offline";
+      pill("warn", "Offline");
       $("updated").textContent = "Couldn't reach the status channel. Check your connection.";
-      if (last) render(last);
+    } finally {
+      asking = false; $("refresh").disabled = false;
     }
   }
   $("refresh").addEventListener("click", load);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
-  setInterval(() => { if (!document.hidden) load(); }, 60000);
-  setInterval(() => { if (last && !document.hidden) render(last); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - lastAsk > 60000) load(); });
+  setInterval(() => { if (last && !document.hidden) render(last); }, 30000);    // keeps the times / strip current
   load();
 })();
 </script>
