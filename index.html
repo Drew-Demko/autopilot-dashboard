@@ -331,8 +331,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
         const r = document.createElement("td"); r.className = "r " + (b.r === "won" ? "pos" : "neg"); r.textContent = (b.r === "won" ? "Won " : "Lost ") + money(b.p, true);
         tr.append(a, r); tb.appendChild(tr);
       }
-      const tot = d.done.reduce((x, b) => x + b.p, 0);
-      const tr = document.createElement("tr"); tr.innerHTML = '<td><strong>Total today</strong></td>';
+      const tot = d.pnl_today;                                   // all of today's bets, not just the ones listed
+      const n = d.done_n || d.done.length;
+      const tr = document.createElement("tr");
+      tr.innerHTML = '<td><strong>Total today</strong><span class="m">' + n + " bet" + (n === 1 ? "" : "s") + (n > d.done.length ? " · latest " + d.done.length + " shown" : "") + "</span></td>";
       const r = document.createElement("td"); r.className = "r " + (tot >= 0 ? "pos" : "neg"); r.textContent = money(Math.round(tot * 100) / 100, true); tr.appendChild(r);
       tb.appendChild(tr); td.innerHTML = ""; td.appendChild(tb);
     }
