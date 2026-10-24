@@ -19,7 +19,7 @@
 :root {
   --bg: #f3f6f4; --panel: #ffffff; --ink: #14201a; --muted: #5b6b62; --line: #dbe3de;
   --green: #1f8a58; --green-soft: #d6efe2; --amber: #b7791f; --amber-soft: #f8ecd5; --red: #c0392b; --red-soft: #f7dcd8;
-  --night: #e3e8f2; --now: #14201a;
+  --night: #e3e8f2; --now: #14201a; --ball: #ffffff;
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
@@ -28,13 +28,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
     --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
-    --night: #1b2233; --now: #e8efe9; color-scheme: dark;
+    --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
   --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
-  --night: #1b2233; --now: #e8efe9; color-scheme: dark;
+  --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -45,7 +45,27 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 main { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 6px; }
+.head-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+button.refresh { position: relative; width: 44px; height: 44px; padding: 0; border-radius: 999px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); border: 1px solid var(--line); overflow: visible; }
+button.refresh:active { transform: scale(.94); }
+button.refresh .ico-refresh { width: 22px; height: 22px; transition: transform .4s ease; }
+button.refresh:hover .ico-refresh { transform: rotate(-60deg); }
+button.refresh .ball, button.refresh .shadow { display: none; }
+button.refresh.loading { background: transparent; border-color: transparent; }
+button.refresh.loading .ico-refresh { display: none; }
+button.refresh.loading .ball { display: block; width: 26px; height: 26px; position: absolute; top: 4px; left: 9px; }
+button.refresh.loading .shadow { display: block; position: absolute; bottom: 2px; left: 12px; width: 20px; height: 4px; border-radius: 50%; background: var(--ink); opacity: .18; }
+@media (prefers-reduced-motion: no-preference) {
+  button.refresh.loading .ball { animation: kick .7s cubic-bezier(.3,0,.4,1) infinite alternate, spin .7s linear infinite; }
+  button.refresh.loading .shadow { animation: squash .7s cubic-bezier(.3,0,.4,1) infinite alternate; }
+  .pill.loading { animation: blink 1.4s ease-in-out infinite; }
+}
+@keyframes kick { from { transform: translateY(-12px); } to { transform: translateY(6px); } }
+@keyframes spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes squash { from { transform: scaleX(.5); opacity: .08; } to { transform: scaleX(1.1); opacity: .25; } }
+@keyframes blink { 50% { opacity: .55; } }
+.ver { font-size: 11px; opacity: .6; }
 h1 { font: 700 30px/1 var(--display); letter-spacing: .01em; margin: 0; }
 h2 { font: 600 15px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
 .pill { font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
@@ -130,7 +150,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 <main>
   <header>
     <h1>Autopilot</h1>
-    <span id="state" class="pill warn">Loading…</span>
+    <div class="head-right">
+      <span id="state" class="pill warn">Loading…</span>
+      <button id="refresh" class="refresh" type="button" aria-label="Refresh: ask Autopilot for the latest">
+        <svg class="ico-refresh" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="ball" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="14" fill="#ffffff" stroke="#14201a" stroke-width="1.6"/>
+          <polygon points="16,10 21.2,13.8 19.2,20 12.8,20 10.8,13.8" fill="#14201a"/>
+          <path d="M16 10V3.5M21.2 13.8l6.1-2M19.2 20l3.8 5.3M12.8 20 9 25.3M10.8 13.8l-6.1-2" stroke="#14201a" stroke-width="1.6" fill="none"/>
+        </svg>
+        <span class="shadow" aria-hidden="true"></span>
+      </button>
+    </div>
   </header>
 
   <section id="setup" hidden>
@@ -183,7 +214,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 
   <footer>
     <span id="updated">–</span>
-    <button id="refresh" type="button">Refresh</button>
+    <span class="ver">v2026-10-24c</span>
   </footer>
 </main>
 
@@ -365,6 +396,24 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
   // with one fresh status within a few seconds. Nothing is sent on a timer.
   let last = null, asking = false, lastAsk = 0;
   const pill = (cls, text) => { $("state").className = "pill " + cls; $("state").textContent = text; };
+  const QUIPS = ["Asking the ref…", "Checking the scoreboard…", "Counting goals…", "Reading the stats…", "Waiting for VAR…", "Tying the boots…"];
+  let quipTimer = null;
+  function loading(on) {
+    $("refresh").classList.toggle("loading", on);
+    $("refresh").disabled = on;
+    clearInterval(quipTimer);
+    if (on) {
+      let i = Math.floor(Math.random() * QUIPS.length);
+      const next = () => { pill("warn loading", QUIPS[i++ % QUIPS.length]); };
+      next(); quipTimer = setInterval(next, 1800);
+    }
+  }
+  // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
+  const VERSION = "2026-10-24c";
+  fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
+    const m = t.match(/const VERSION = "([^"]+)"/);
+    if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
+  }).catch(() => {});
   const ntfy = (t) => "https://ntfy.sh/" + encodeURIComponent(t);
 
   async function latest(sinceArg) {
@@ -380,7 +429,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
     if (!topic) { $("setup").hidden = false; pill("warn", "Not connected"); return; }
     if (asking || Date.now() - lastAsk < 8000) return;           // one request at a time
     asking = true; lastAsk = Date.now();
-    pill("warn", "Updating…"); $("refresh").disabled = true;
+    loading(true);
     try {
       if (!last) { const d0 = await latest("12h"); if (d0) { last = d0; render(d0); } }   // show something right away
       const asked = Math.floor(Date.now() / 1000) - 2;
@@ -391,6 +440,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
         const x = await latest(String(asked));
         if (x && x.u >= asked) d = x;
       }
+      loading(false);
       if (d) { last = d; render(d); pill("ok", (d.mode === "live" ? "Live" : "Shadow") + " · just updated"); }
       else {
         pill("bad", "No answer");
@@ -398,10 +448,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
         if (!last) { $("lt-head").textContent = "No status from Autopilot yet"; $("lt-sub").textContent = "Start Autopilot on the Mac, then tap Refresh."; }
       }
     } catch (e) {
+      loading(false);
       pill("warn", "Offline");
       $("updated").textContent = "Couldn't reach the status channel. Check your connection.";
     } finally {
-      asking = false; $("refresh").disabled = false;
+      asking = false; loading(false);
+      if ($("state").className.includes("loading")) pill("warn", "Tap ↻ to update");
     }
   }
   $("refresh").addEventListener("click", load);
