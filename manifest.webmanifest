@@ -1,0 +1,10 @@
+{
+  "name": "Autopilot",
+  "short_name": "Autopilot",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e1411",
+  "theme_color": "#0e1411",
+  "icons": [{ "src": "icon.png", "sizes": "180x180", "type": "image/png" }]
+}
