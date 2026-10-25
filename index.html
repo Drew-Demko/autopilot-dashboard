@@ -159,7 +159,44 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 .game .box { background: var(--panel); border-radius: 18px; padding: 14px; width: min(360px, 100%); display: grid; gap: 10px; }
 .game canvas { width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; background: linear-gradient(var(--pitch1), var(--pitch2)); touch-action: none; }
 .game .row { font-size: 14px; }
-body.stadium { background-image: repeating-linear-gradient(90deg, var(--bg) 0 40px, var(--stripe) 40px 80px); }
+/* ---- STADIUM MODE (tap the title 11 times) ---- */
+#stadium { position: fixed; inset: 0; z-index: 0; pointer-events: none; display: none; overflow: hidden;
+  background: repeating-linear-gradient(180deg, #2c7a47 0 56px, #276e40 56px 112px); }
+body.stadium #stadium { display: block; }
+body.stadium main { position: relative; z-index: 1; }
+#stadium .lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+#stadium .lines * { fill: none; stroke: rgba(255,255,255,.55); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+#stadium .flood { position: absolute; top: -140px; width: 360px; height: 360px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,250,225,.75) 0%, rgba(255,250,225,.25) 30%, rgba(255,250,225,0) 68%); }
+#stadium .flood.l { left: -150px; } #stadium .flood.r { right: -150px; }
+#stadium .beam { position: absolute; top: 0; width: 55%; height: 110%; opacity: .16;
+  background: linear-gradient(180deg, rgba(255,250,225,.9), rgba(255,250,225,0)); }
+#stadium .beam.l { left: -10%; transform: skewX(18deg); transform-origin: top left; }
+#stadium .beam.r { right: -10%; transform: skewX(-18deg); transform-origin: top right; }
+#crowd { position: absolute; top: 0; left: 0; width: 100%; height: 96px; }
+#stadium .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%); }
+#ticker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: none; overflow: hidden; white-space: nowrap;
+  padding: 7px 0 calc(env(safe-area-inset-bottom, 0px) + 7px); background: #0a0f0c; border-top: 2px solid #3ccf8a;
+  font: 600 14px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: #7ff0b4; text-shadow: 0 0 8px rgba(127,240,180,.7); }
+body.stadium #ticker { display: block; }
+body.stadium { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px); }
+#ticker .run { display: inline-block; padding-left: 100%; }
+body.stadium section { background: color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.28); }
+body.stadium header { background: rgba(8,14,11,.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 0 0 14px 14px;
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+body.stadium h1 { color: #fff; text-shadow: 0 0 10px rgba(127,240,180,.9), 0 0 24px rgba(60,207,138,.6); }
+body.stadium footer { background: color-mix(in srgb, var(--panel) 90%, transparent); border-radius: 12px; padding: 8px 12px; color: var(--ink); }
+#lights-on { position: fixed; inset: 0; z-index: 60; pointer-events: none; background: #000; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  #ticker .run { animation: tick 28s linear infinite; }
+  #stadium .flood { animation: hum 4s ease-in-out infinite; }
+  #stadium .flood.r { animation-delay: -2s; }
+  #lights-on.go { animation: lightsOn 1.3s ease forwards; }
+}
+@keyframes tick { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes hum { 0%,100% { opacity: .92; } 50% { opacity: 1; } }
+@keyframes lightsOn { 0% { opacity: .95; background: #000; } 35% { opacity: .95; background: #000; } 42% { opacity: .9; background: #fffbe8; } 100% { opacity: 0; background: #fffbe8; } }
 @media (prefers-reduced-motion: no-preference) {
   .away { animation: rise .5s ease; }
   .dot.fresh { animation: pop .6s ease both; }
@@ -293,9 +330,22 @@ body.stadium { background-image: repeating-linear-gradient(90deg, var(--bg) 0 40
 
   <footer>
     <span id="updated">–</span>
-    <span class="ver">v2026-10-24e</span>
+    <span class="ver">v2026-10-24f</span>
   </footer>
 </main>
+<div id="stadium" aria-hidden="true">
+  <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <rect x="4" y="3" width="92" height="94"/><line x1="4" y1="50" x2="96" y2="50"/>
+    <ellipse cx="50" cy="50" rx="14" ry="8"/><rect x="24" y="3" width="52" height="14"/><rect x="37" y="3" width="26" height="6"/>
+    <rect x="24" y="83" width="52" height="14"/><rect x="37" y="91" width="26" height="6"/>
+  </svg>
+  <div class="beam l"></div><div class="beam r"></div>
+  <canvas id="crowd"></canvas>
+  <div class="flood l"></div><div class="flood r"></div>
+  <div class="vignette"></div>
+</div>
+<div id="ticker" aria-hidden="true"><span class="run" id="ticker-run">AUTOPILOT</span></div>
+<div id="lights-on" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <div id="game" class="game" role="dialog" aria-modal="true" aria-labelledby="game-title" hidden>
   <div class="box">
@@ -495,6 +545,7 @@ body.stadium { background-image: repeating-linear-gradient(90deg, var(--bg) 0 40
     // Money
     countUp($("bal"), d.bal);
     away(d); chart(d); notifUI();
+    if (document.body.classList.contains("stadium")) ticker(d);
     const pt = $("pt"); pt.textContent = money(d.pnl_today, true); pt.className = "v " + (d.pnl_today > 0 ? "pos" : d.pnl_today < 0 ? "neg" : "");
     const pa = $("pa"); pa.textContent = money(d.pnl, true); pa.className = "v " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
     $("nb").textContent = d.n + (d.lost ? " · " + d.lost + " lost" : " · 0 lost");
@@ -655,11 +706,69 @@ body.stadium { background-image: repeating-linear-gradient(90deg, var(--bg) 0 40
     taps++; clearTimeout(tapTimer); tapTimer = setTimeout(() => { taps = 0; }, 3000);
     if (taps === 11) {
       taps = 0; const on = !document.body.classList.contains("stadium");
-      document.body.classList.toggle("stadium", on); store.set("ap-stadium", on);
-      confetti(); toast(on ? "Number 11! Stadium mode on 🏟️" : "Stadium mode off");
+      stadium(on, true);                                     // just for this visit
+      toast(on ? "Number 11! Welcome to the stadium 🏟️" : "Stadium lights off. Tap 11 times to switch them back on.");
     }
   });
-  if (store.get("ap-stadium", false)) document.body.classList.add("stadium");
+  function whistle() {                                        // two short referee blasts, made on the spot (no files)
+    try {
+      const A = new (window.AudioContext || window.webkitAudioContext)(), now = A.currentTime;
+      [[0, .22], [.3, .55]].forEach(([a, b]) => {
+        const o = A.createOscillator(), g = A.createGain(), lfo = A.createOscillator(), lg = A.createGain();
+        o.type = "sine"; o.frequency.value = 2900; lfo.frequency.value = 38; lg.gain.value = 120;
+        lfo.connect(lg); lg.connect(o.frequency);
+        g.gain.setValueAtTime(0, now + a); g.gain.linearRampToValueAtTime(.18, now + a + .02); g.gain.setValueAtTime(.18, now + b - .03); g.gain.linearRampToValueAtTime(0, now + b);
+        o.connect(g); g.connect(A.destination); o.start(now + a); lfo.start(now + a); o.stop(now + b); lfo.stop(now + b);
+      });
+    } catch (e) {}
+  }
+  let crowdLoop = null;
+  function crowd() {                                          // rows of fans along the top, with camera flashes
+    const c = $("crowd"), x = c.getContext("2d"), dpr = devicePixelRatio || 1;
+    const W = c.width = c.clientWidth * dpr, H = c.height = c.clientHeight * dpr;
+    const heads = [];
+    for (let row = 0; row < 4; row++) for (let i = 0; i < W / (9 * dpr); i++)
+      heads.push({ x: i * 9 * dpr + (row % 2) * 4.5 * dpr + Math.random() * 2, y: (14 + row * 18) * dpr, r: (3.2 + Math.random()) * dpr,
+                   c: ["#1a2a22", "#223529", "#2b3f33", "#3ccf8a", "#e8c45a", "#e8efe9"][Math.floor(Math.random() * (Math.random() < .25 ? 6 : 3))] });
+    const flashes = [];
+    cancelAnimationFrame(crowdLoop);
+    (function f() {
+      if (!document.body.classList.contains("stadium")) return;
+      x.clearRect(0, 0, W, H);
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "rgba(6,10,8,.95)"); g.addColorStop(1, "rgba(6,10,8,0)");
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const t = performance.now() / 300;
+      for (const h of heads) { x.fillStyle = h.c; x.beginPath(); x.arc(h.x, h.y + (calm ? 0 : Math.sin(t + h.x) * .8 * dpr), h.r, 0, 7); x.fill(); }
+      if (!calm && Math.random() < .12) flashes.push({ x: Math.random() * W, y: (10 + Math.random() * 60) * dpr, life: 1 });
+      for (const fl of flashes) {
+        const r = 14 * dpr * fl.life, gr = x.createRadialGradient(fl.x, fl.y, 0, fl.x, fl.y, r);
+        gr.addColorStop(0, "rgba(255,255,255," + fl.life + ")"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        x.fillStyle = gr; x.beginPath(); x.arc(fl.x, fl.y, r, 0, 7); x.fill(); fl.life -= .12;
+      }
+      while (flashes.length && flashes[0].life <= 0) flashes.shift();
+      crowdLoop = requestAnimationFrame(f);
+    })();
+  }
+  function ticker(d) {                                        // LED board along the bottom
+    if (!d) return;
+    const bits = ["AUTOPILOT", "BALANCE " + money(d.bal), "TODAY " + money(d.pnl_today, true), "ALL TIME " + money(d.pnl, true),
+                  (d.n || 0) + " BETS · " + (d.lost || 0) + " LOST"];
+    for (const b of d.cur || []) bits.push("LIVE: " + b.t + " " + (b.sc || "") + " " + (b.p === "2H" || b.p === "1H" ? (b.min || "") + "'" : b.p || "") + " · " + b.l);
+    if (d.wd) bits.push("NEXT WITHDRAWAL AT " + money(d.wd.target));
+    $("ticker-run").textContent = bits.join("   ⚽   ") + "   ⚽   ";
+  }
+  function stadium(on, fanfare) {
+    document.body.classList.toggle("stadium", on);
+    if (!on) return;
+    if (fanfare) {
+      whistle();
+      const l = $("lights-on"); l.classList.remove("go"); void l.offsetWidth; l.classList.add("go");
+      setTimeout(() => confetti(), 600);
+    }
+    crowd(); ticker(last);
+  }
+  addEventListener("resize", () => { if (document.body.classList.contains("stadium")) crowd(); });
+  store.set("ap-stadium", false);                             // the page always opens in regular mode (Drew, Oct 24)
   // Easter egg 2: Konami code -> it rains footballs
   const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
   let kpos = 0;
@@ -778,7 +887,7 @@ body.stadium { background-image: repeating-linear-gradient(90deg, var(--bg) 0 40
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-10-24e";
+  const VERSION = "2026-10-24f";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
