@@ -343,7 +343,7 @@ body.stadium #ticker { cursor: pointer; }
 
   <section aria-labelledby="h-hist">
     <h2 id="h-hist">Bet history</h2>
-    <div class="sub" id="hist-sub">Every bet, with its notifications and the match stats at the moment Autopilot bet.</div>
+    <div class="sub" id="hist-sub">Every bet, with its notifications and the match stats at the moment Autopilot bet. Updates with every refresh.</div>
     <div id="hist"></div>
     <div class="hist-actions">
       <button id="hist-load" type="button">Show recent bets</button>
@@ -1072,7 +1072,7 @@ body.stadium #ticker { cursor: pointer; }
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-11-03a";
+  const VERSION = "2026-11-03b";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
@@ -1104,7 +1104,7 @@ body.stadium #ticker { cursor: pointer; }
         if (x && x.u >= asked) d = x;
       }
       loading(false);
-      if (d) { last = d; render(d); pill("ok", (d.mode === "live" ? "Live" : "Shadow") + " · just updated"); }
+      if (d) { last = d; render(d); pill("ok", (d.mode === "live" ? "Live" : "Shadow") + " · just updated"); autoHist(asked); }
       else {
         pill("bad", "No answer");
         $("updated").textContent = "Autopilot didn't answer: the Mac may be asleep or Autopilot closed." + (last ? " Showing the update from " + ago(last.u) + "." : "");
@@ -1190,6 +1190,32 @@ body.stadium #ticker { cursor: pointer; }
     $("hist-more").hidden = !histMore;
     $("hist-load").textContent = hist.length ? "Refresh history" : "Show recent bets";
   }
+  function gotHist(d, older) {
+    if (older) hist = hist.concat(d.bets.filter((b) => !hist.some((h) => h.id === b.id)));
+    else {                                                    // newest page: replace those bets, keep older ones loaded
+      const fresh = new Map(d.bets.map((b) => [b.id, b]));
+      const oldest = d.bets.length ? Math.min(...d.bets.map((b) => b.id)) : Infinity;
+      const kept = hist.filter((h) => !fresh.has(h.id) && h.id < oldest);
+      hist = d.bets.concat(kept);
+      if (!kept.length) histMore = d.more;
+    }
+    if (older) histMore = d.more;
+    store.set("ap-hist", { u: d.u, bets: hist.slice(0, 40), more: histMore });
+    renderHist();
+    $("hist-sub").textContent = "Updated " + ago(d.u) + ". Tap a bet to see its notifications and stats.";
+  }
+  async function autoHist(asked) {                            // the page Autopilot sends with every refresh
+    for (let i = 0; i < 4; i++) {
+      try {
+        const r = await fetch(ntfy(topic + "-hist") + "/json?poll=1&since=" + asked, { cache: "no-store" });
+        const lines = (await r.text()).trim().split("\n").filter(Boolean);
+        for (let j = lines.length - 1; j >= 0; j--) {
+          try { const ev = JSON.parse(lines[j]); if (ev.event === "message") { const x = JSON.parse(ev.message); if (x.kind === "hist" && x.req === "auto") { gotHist(x, false); return; } } } catch (e) {}
+        }
+      } catch (e) { return; }
+      await new Promise((ok) => setTimeout(ok, 1500));
+    }
+  }
   async function loadHist(older) {
     if (!topic || histBusy) return;
     histBusy = true;
@@ -1208,13 +1234,8 @@ body.stadium #ticker { cursor: pointer; }
           try { const ev = JSON.parse(lines[j]); if (ev.event === "message") { const x = JSON.parse(ev.message); if (x.kind === "hist" && x.req === req && x.u >= asked) d = x; } } catch (e) {}
         }
       }
-      if (d) {
-        hist = older ? hist.concat(d.bets.filter((b) => !hist.some((h) => h.id === b.id))) : d.bets;
-        histMore = d.more;
-        store.set("ap-hist", { u: d.u, bets: hist.slice(0, 40), more: histMore });
-        renderHist();
-        $("hist-sub").textContent = "Updated " + ago(d.u) + ". Tap a bet to see its notifications and stats.";
-      } else $("hist-sub").textContent = "Autopilot didn't answer: the Mac may be asleep or Autopilot closed. Try again in a minute.";
+      if (d) gotHist(d, older);
+      else $("hist-sub").textContent = "Autopilot didn't answer: the Mac may be asleep or Autopilot closed. Try again in a minute.";
     } catch (e) {
       $("hist-sub").textContent = "Couldn't reach Autopilot. Check your connection.";
     } finally {
@@ -1229,10 +1250,10 @@ body.stadium #ticker { cursor: pointer; }
     const saved = store.get("ap-hist", null);
     if (saved && saved.bets && saved.bets.length) {
       hist = saved.bets; histMore = !!saved.more; renderHist();
-      $("hist-sub").textContent = "Saved copy from " + ago(saved.u) + ". Tap Refresh history for the latest.";
-    }
+      $("hist-sub").textContent = "Saved copy from " + ago(saved.u) + ". Updating with the next refresh…";
+    } else if (topic) autoHist("12h");                     // first time on this phone: the latest page sent
   })();
-  window.__apHist = (d) => { hist = d.bets; histMore = d.more; renderHist(); };   // preview by hand (testing only)
+  window.__apHist = (d, older) => gotHist(d, !!older);      // preview by hand (testing only)
 
   window.__apPreview = (d) => { last = d; render(d); };     // for previewing a status by hand (testing only)
   load();
