@@ -132,6 +132,31 @@ table.today td { padding: 7px 0; border-top: 1px solid var(--line); vertical-ali
 table.today tr:first-child td { border-top: 0; }
 table.today td.r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 table.today .m { color: var(--muted); display: block; }
+/* bet history (Nov 3): tap a bet for its notifications and the stats at bet time */
+.hist-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.hist-actions button[hidden] { display: none; }
+details.hb { border-top: 1px solid var(--line); }
+details.hb:first-child { border-top: 0; }
+details.hb summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; align-items: baseline; }
+details.hb summary::-webkit-details-marker { display: none; }
+details.hb .t { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+details.hb .m { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+details.hb .r { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+details.hb .r::after { content: " +"; color: var(--muted); font-weight: 600; }
+details.hb[open] .r::after { content: " –"; }
+details.hb .body { display: grid; gap: 10px; padding: 0 0 14px; }
+.notice { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-size: 14px; }
+.notice .k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.notice .tt { font-weight: 600; }
+.notice .bd { white-space: pre-line; color: var(--ink); }
+table.stats { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; table-layout: fixed; }
+table.stats th { font-size: 12px; font-weight: 600; color: var(--muted); text-align: right; padding: 0 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.stats th:first-child, table.stats td:first-child { text-align: left; width: 44%; }
+table.stats td { text-align: right; padding: 5px 0; border-top: 1px solid var(--line); }
+table.stats td.lead { font-weight: 700; color: var(--green); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.facts span { font-size: 13px; padding: 3px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.facts span.hot { background: var(--amber-soft); color: var(--amber); border-color: transparent; font-weight: 600; }
 /* live */
 ul.live { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 ul.live li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
@@ -314,6 +339,16 @@ body.stadium #ticker { cursor: pointer; }
   <section aria-labelledby="h-today">
     <h2 id="h-today">Today's results</h2>
     <div id="today"></div>
+  </section>
+
+  <section aria-labelledby="h-hist">
+    <h2 id="h-hist">Bet history</h2>
+    <div class="sub" id="hist-sub">Every bet, with its notifications and the match stats at the moment Autopilot bet.</div>
+    <div id="hist"></div>
+    <div class="hist-actions">
+      <button id="hist-load" type="button">Show recent bets</button>
+      <button id="hist-more" type="button" hidden>Load older bets</button>
+    </div>
   </section>
 
   <section aria-labelledby="h-money">
@@ -1037,7 +1072,7 @@ body.stadium #ticker { cursor: pointer; }
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-10-24g";
+  const VERSION = "2026-11-03a";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
@@ -1087,6 +1122,118 @@ body.stadium #ticker { cursor: pointer; }
   $("refresh").addEventListener("click", () => { if (!longPressed) load(); longPressed = false; });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - lastAsk > 60000) load(); });
   setInterval(() => { if (last && !document.hidden) render(last); }, 30000);    // keeps the times / strip current
+  // ================= BET HISTORY (Nov 3) =================
+  // On demand: "history" (or "history:<id>" for older bets) goes to the request channel; Autopilot answers on <topic>-hist.
+  const LEAGUES = { "epl-2025": "Premier League", "eflch": "Championship", "eflc": "EFL", "lal-2025": "La Liga", "sea-2025": "Serie A",
+    "bun-2025": "Bundesliga", "lg1": "Ligue 1", "ere": "Eredivisie", "mls-2025": "MLS", "lmx": "Liga MX", "ucl-2025": "Champions League",
+    "uel": "Europa League", "uecl": "Conference League", "dfb": "DFB-Pokal", "lib": "Libertadores" };
+  const STAT_ROWS = [["xG (expected goals)", 0, 2], ["Shots on target", 1], ["Shots in the box", 2], ["Total shots", 3], ["Corners", 4], ["Keeper saves", 5], ["Red cards", 6]];
+  const fmtD = (s) => new Date(s * 1000).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · " + fmtT(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let hist = [], histMore = false, histBusy = false;
+
+  function placedNotice(b) {                                  // the "bet placed" notification, as it was sent
+    const [home, away] = b.t.split(" – ");
+    const title = (b.md === "live" ? "LIVE bet placed" : "SHADOW bet") + ": " + b.l + " · " + home + " " + b.sc + " " + (away || "") + " · " + b.m + "'";
+    const body = b.q + " contracts @ " + (b.px * 100).toFixed(1) + "¢ = $" + b.c.toFixed(2) + " at risk, wins $" + Math.max(0, b.q - b.c).toFixed(2) + ".\n" +
+      "Loses only if " + b.gn + " more goals in ~" + b.ml + " min " + (b.pst != null ? "(+PST " + Math.round(b.pst) + ")" : "(+ stoppage)") + "." +
+      (b.sm ? "\nStats: " + b.sm : "");
+    return [title, body];
+  }
+  function noticeCard(kind, title, body) {
+    const n = el("div", "notice"); n.append(el("div", "k", kind), el("div", "tt", title), el("div", "bd", body)); return n;
+  }
+  function histItem(b) {
+    const det = el("details", "hb"), sm = el("summary");
+    const r = el("span", "r " + (b.r === "won" ? "pos" : b.r === "lost" ? "neg" : ""),
+      b.r === "won" ? "Won " + money(b.p, true) : b.r === "lost" ? "Lost " + money(b.p, true) : b.unk ? "Unconfirmed" : "Open");
+    sm.append(el("span", "t", b.t), r,
+      el("span", "m", fmtD(b.at) + " · " + b.l + " @ " + Math.round(b.px * 100) + "¢ · " + b.sc + " at " + b.m + "'" + (LEAGUES[b.lg] ? " · " + LEAGUES[b.lg] : "")));
+    det.appendChild(sm);
+    const body = el("div", "body");
+    // quick facts
+    const f = el("div", "facts");
+    f.append(el("span", "", "Lost only if " + b.gn + "+ more goals"),
+      el("span", b.pst != null && b.pst >= 9 ? "hot" : "", "~" + b.ml + " min left" + (b.pst != null ? " + PST " + Math.round(b.pst) : "")));
+    if (b.dr != null) f.append(el("span", b.dr > 1.2 ? "hot" : "", "Danger " + b.dr.toFixed(2) + "x a normal game"));
+    if (b.fs) f.append(el("span", b.sp < 0 ? "hot" : "", "Final " + b.fs + " · " + (b.sp > 0 ? b.sp + " to spare" : b.sp === 0 ? "right on the limit" : (-b.sp) + " over")));
+    if (b.ch) f.append(el("span", "hot", "Chasing: " + b.ch));
+    body.appendChild(f);
+    // stats at bet time
+    if (b.hs && b.as) {
+      const [home, away] = b.t.split(" – ");
+      const tb = el("table", "stats"), hd = el("tr");
+      hd.append(el("th", "", "At " + b.m + "'"), el("th", "", home || "Home"), el("th", "", away || "Away"));
+      const th = el("thead"); th.appendChild(hd); tb.appendChild(th);
+      const tbody = el("tbody");
+      for (const [name, i, dec] of STAT_ROWS) {
+        const h = b.hs[i], a = b.as[i];
+        if (h == null && a == null) continue;
+        const tr = el("tr"), fmt = (v) => v == null ? "–" : dec ? Number(v).toFixed(dec) : String(v);
+        const lead = i < 5 && h != null && a != null && h !== a ? (h > a ? 1 : 2) : 0;   // saves / reds aren't "leading"
+        tr.append(el("td", "", name), el("td", lead === 1 ? "lead" : "", fmt(h)), el("td", lead === 2 ? "lead" : "", fmt(a)));
+        tbody.appendChild(tr);
+      }
+      tb.appendChild(tbody); body.appendChild(tb);
+    } else body.appendChild(el("div", "empty", "No match stats were recorded for this bet (the stats check started on Oct 18)."));
+    // the notifications themselves
+    const [pt, pb] = placedNotice(b);
+    body.appendChild(noticeCard("Bet notification · " + fmtT(b.at), pt, pb));
+    if (b.rn) { const lines = b.rn.split("\n"); body.appendChild(noticeCard("Result notification", lines[0], lines.slice(1).join("\n"))); }
+    det.appendChild(body);
+    return det;
+  }
+  function renderHist() {
+    const box = $("hist"); box.innerHTML = "";
+    if (!hist.length) { box.appendChild(el("div", "empty", "No bets yet.")); }
+    for (const b of hist) box.appendChild(histItem(b));
+    $("hist-more").hidden = !histMore;
+    $("hist-load").textContent = hist.length ? "Refresh history" : "Show recent bets";
+  }
+  async function loadHist(older) {
+    if (!topic || histBusy) return;
+    histBusy = true;
+    const btn = older ? $("hist-more") : $("hist-load"), label = btn.textContent;
+    btn.textContent = "Asking Autopilot…"; btn.disabled = true;
+    const req = older && hist.length ? "history:" + hist[hist.length - 1].id : "history";
+    try {
+      const asked = Math.floor(Date.now() / 1000) - 2;
+      await fetch(ntfy(topic + "-req"), { method: "POST", body: req, headers: { Priority: "min" } });
+      let d = null;
+      for (let i = 0; i < 12 && !d; i++) {                        // wait up to ~24 s for the answer
+        await new Promise((ok) => setTimeout(ok, 2000));
+        const r = await fetch(ntfy(topic + "-hist") + "/json?poll=1&since=" + asked, { cache: "no-store" });
+        const lines = (await r.text()).trim().split("\n").filter(Boolean);
+        for (let j = lines.length - 1; j >= 0 && !d; j--) {
+          try { const ev = JSON.parse(lines[j]); if (ev.event === "message") { const x = JSON.parse(ev.message); if (x.kind === "hist" && x.req === req && x.u >= asked) d = x; } } catch (e) {}
+        }
+      }
+      if (d) {
+        hist = older ? hist.concat(d.bets.filter((b) => !hist.some((h) => h.id === b.id))) : d.bets;
+        histMore = d.more;
+        store.set("ap-hist", { u: d.u, bets: hist.slice(0, 40), more: histMore });
+        renderHist();
+        $("hist-sub").textContent = "Updated " + ago(d.u) + ". Tap a bet to see its notifications and stats.";
+      } else $("hist-sub").textContent = "Autopilot didn't answer: the Mac may be asleep or Autopilot closed. Try again in a minute.";
+    } catch (e) {
+      $("hist-sub").textContent = "Couldn't reach Autopilot. Check your connection.";
+    } finally {
+      histBusy = false; btn.disabled = false;
+      if (btn.textContent === "Asking Autopilot…") btn.textContent = label;
+      renderHist();
+    }
+  }
+  $("hist-load").addEventListener("click", () => loadHist(false));
+  $("hist-more").addEventListener("click", () => loadHist(true));
+  (function () {                                              // show the copy saved on this phone straight away
+    const saved = store.get("ap-hist", null);
+    if (saved && saved.bets && saved.bets.length) {
+      hist = saved.bets; histMore = !!saved.more; renderHist();
+      $("hist-sub").textContent = "Saved copy from " + ago(saved.u) + ". Tap Refresh history for the latest.";
+    }
+  })();
+  window.__apHist = (d) => { hist = d.bets; histMore = d.more; renderHist(); };   // preview by hand (testing only)
+
   window.__apPreview = (d) => { last = d; render(d); };     // for previewing a status by hand (testing only)
   load();
 })();
