@@ -170,6 +170,32 @@ button { font: 600 14px var(--body); color: var(--ink); background: var(--panel)
 button:focus-visible, input:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 #setup input { width: 100%; font: 15px var(--body); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin: 8px 0; }
 @media (prefers-reduced-motion: no-preference) { .bar > div { transition: width .6s ease; } }
+/* Nov 7 clean-up: money summary, kinds of bet, Fade, latest review */
+.sum-top { display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; align-items: end; }
+.sum-top .k { font-size: 13px; color: var(--muted); }
+.big-num { font: 700 44px/1 var(--display); font-variant-numeric: tabular-nums; }
+.v2 { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.v2 small, .v small { font: 500 14px var(--body); color: var(--muted); margin-left: 4px; }
+.kinds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.kind { border: 1px solid var(--line); border-radius: 12px; padding: 10px 11px; background: var(--bg); min-width: 0; }
+.kind .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.kind .n { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; margin-top: 6px; }
+.kind .s { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.kind .vd { display: inline-block; font-size: 12px; font-weight: 600; margin-top: 8px; padding: 2px 8px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
+.kind .vd.good { background: var(--green-soft); color: var(--green); border-color: transparent; }
+.kind .vd.bad { background: var(--red-soft); color: var(--red); border-color: transparent; }
+.tag { display: inline-block; font: 700 11px/1 var(--body); letter-spacing: .06em; padding: 4px 7px; border-radius: 6px; vertical-align: 2px; margin-right: 6px; }
+.tag.safe { background: var(--green-soft); color: var(--green); }
+.tag.fade { background: var(--gold-soft); color: var(--gold); }
+.fade-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.bar.gold > div { background: var(--gold); }
+.alert.warn { background: var(--amber-soft); color: var(--amber); }
+.rv-head { font: 700 20px/1.2 var(--display); }
+.rv-idea { margin-top: 8px; padding: 9px 11px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; }
+.rv-idea .k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.filters { display: flex; gap: 6px; margin: 2px 0 10px; }
+.filters button { padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 /* ---- game layer ---- */
 .game[hidden], .toast[hidden] { display: none; }
@@ -320,46 +346,54 @@ body.stadium #ticker { cursor: pointer; }
     <button id="away-ok" type="button">Got it</button>
   </section>
 
-  <section id="laptop" aria-labelledby="h-laptop">
-    <h2 id="h-laptop">Laptop</h2>
-    <div class="big" id="lt-head">Waiting for Autopilot…</div>
-    <div class="sub" id="lt-sub"></div>
-    <div class="strip" id="strip" aria-hidden="true"></div>
-    <div class="ticks" id="ticks" aria-hidden="true"></div>
-    <div class="legend"><span><i style="background:var(--green)"></i>Betting windows</span><span><i style="background:var(--night)"></i>Overnight (10:30pm–7:30am)</span><span><i style="background:var(--now)"></i>Now</span></div>
-    <div class="tip" id="tip">Tap a green block to see who's playing.</div>
-    <div id="blocks"></div>
+  <section id="sum" aria-labelledby="h-money">
+    <h2 id="h-money">Money</h2>
+    <div class="sum-top">
+      <div><div class="k">Balance</div><div class="big-num" id="bal">–</div></div>
+      <div>
+        <div class="k">Today</div><div class="v2" id="pt">–</div>
+        <div class="k" style="margin-top:6px">All time</div><div class="v2" id="pa">–</div>
+      </div>
+    </div>
+    <div class="kinds" id="kinds"></div>
   </section>
 
   <section aria-labelledby="h-cur">
-    <h2 id="h-cur">Current bets</h2>
+    <h2 id="h-cur">Open bets</h2>
     <div id="cur"></div>
   </section>
 
   <section aria-labelledby="h-today">
-    <h2 id="h-today">Today's results</h2>
+    <h2 id="h-today">Settled today</h2>
     <div id="today"></div>
   </section>
 
-  <section aria-labelledby="h-hist">
-    <h2 id="h-hist">Bet history</h2>
-    <div class="sub" id="hist-sub">Every bet, with its notifications and the match stats at the moment Autopilot bet. Updates with every refresh.</div>
-    <div id="hist"></div>
-    <div class="hist-actions">
-      <button id="hist-load" type="button">Show recent bets</button>
-      <button id="hist-more" type="button" hidden>Load older bets</button>
+  <section id="fade" aria-labelledby="h-fade">
+    <h2 id="h-fade">Fade bets</h2>
+    <div class="sub" id="fd-rule">Betting “no more goals” against small sellers who overpay for a late goal.</div>
+    <div class="fade-grid">
+      <div class="tile"><div class="k">Record</div><div class="v" id="fd-rec">–</div><div class="sub" id="fd-exp"></div></div>
+      <div class="tile"><div class="k">Profit</div><div class="v" id="fd-p">–</div><div class="sub" id="fd-today"></div></div>
     </div>
+    <div class="row" style="margin-top:12px"><span id="fd-stake">–</span><span id="fd-step"></span></div>
+    <div class="bar gold" role="progressbar" aria-label="Fade bets until the stake can step up to 30%" aria-valuemin="0" aria-valuemax="100" id="fd-bar"><div id="fd-fill" style="width:0%"></div></div>
+    <div class="alert warn" id="fd-alert" hidden></div>
   </section>
 
-  <section aria-labelledby="h-money">
-    <h2 id="h-money">Money</h2>
-    <div class="tiles">
-      <div class="tile"><div class="k">Balance</div><div class="v" id="bal">–</div></div>
-      <div class="tile"><div class="k">Profit today</div><div class="v" id="pt">–</div></div>
-      <div class="tile"><div class="k">Profit all time</div><div class="v" id="pa">–</div></div>
-      <div class="tile"><div class="k">Bets settled</div><div class="v" id="nb">–</div></div>
-    </div>
-    <div class="edge" id="edge"></div>
+  <section id="laptop" aria-labelledby="h-laptop">
+    <h2 id="h-laptop">When to open the laptop</h2>
+    <div class="big" id="lt-head">Waiting for Autopilot…</div>
+    <div class="sub" id="lt-sub"></div>
+    <div class="strip" id="strip" aria-hidden="true"></div>
+    <div class="ticks" id="ticks" aria-hidden="true"></div>
+    <div class="legend"><span><i style="background:var(--green)"></i>Bets possible</span><span><i style="background:var(--night)"></i>Overnight</span><span><i style="background:var(--now)"></i>Now</span></div>
+    <div class="tip" id="tip">Tap a block to see who's playing.</div>
+    <div id="blocks"></div>
+  </section>
+
+  <section id="rv" aria-labelledby="h-rv">
+    <h2 id="h-rv">Latest review</h2>
+    <div id="rv-body"><div class="empty">No review yet. Start one in the Claude app: Scheduled → “Autopilot review” → Run now, or type /autopilot-review in a Claude chat in this project.</div></div>
   </section>
 
   <section aria-labelledby="h-chart">
@@ -376,6 +410,17 @@ body.stadium #ticker { cursor: pointer; }
     <div class="alert" id="wd-alert" hidden></div>
   </section>
 
+  <section aria-labelledby="h-hist">
+    <h2 id="h-hist">Bet history</h2>
+    <div class="filters" id="hist-filters" role="group" aria-label="Show"><button type="button" data-f="all" aria-pressed="true">All</button><button type="button" data-f="safe" aria-pressed="false">Safe</button><button type="button" data-f="fade" aria-pressed="false">Fade</button></div>
+    <div class="sub" id="hist-sub">Every bet with its notifications and the stats when Autopilot bet. Updates with every refresh.</div>
+    <div id="hist"></div>
+    <div class="hist-actions">
+      <button id="hist-load" type="button">Show recent bets</button>
+      <button id="hist-more" type="button" hidden>Load older bets</button>
+    </div>
+  </section>
+
   <section id="notif" aria-labelledby="h-notif" hidden>
     <h2 id="h-notif">Notifications</h2>
     <div class="sub" id="notif-text">Get Autopilot's bets and results as notifications from this app.</div>
@@ -384,7 +429,7 @@ body.stadium #ticker { cursor: pointer; }
 
   <footer>
     <span id="updated">–</span>
-    <span class="ver">v2026-10-24g</span>
+    <span class="ver">v2026-11-07a</span>
   </footer>
 </main>
 <div id="stadium" aria-hidden="true">
@@ -421,6 +466,7 @@ body.stadium #ticker { cursor: pointer; }
   const $ = (id) => document.getElementById(id);
   const fmtT = (s) => new Date(s * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(" ", "").toLowerCase();
   const money = (v, sign) => v == null ? "–" : (sign && v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toFixed(2);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const ago = (s) => { const m = Math.round((Date.now() / 1000 - s) / 60); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.floor(m / 60) + " h " + (m % 60) + " min ago"; };
 
   // Channel: from the link (#channel), remembered on this device.
@@ -471,15 +517,15 @@ body.stadium #ticker { cursor: pointer; }
     const cur = bl.find((b) => b.a <= now && b.b >= now);
     const next = bl.find((b) => b.a > now);
     if (cur) {
-      $("lt-head").textContent = "Keep the laptop open until " + fmtT(cur.b);
-      $("lt-sub").textContent = cur.games.length + " game" + (cur.games.length > 1 ? "s" : "") + " in a betting window now.";
+      $("lt-head").textContent = "Keep it open till " + fmtT(cur.b);
+      $("lt-sub").textContent = cur.games.length + " game" + (cur.games.length > 1 ? "s" : "") + " can be bet on now.";
     } else if (next) {
       const mins = Math.round((next.a - now) / 60);
       $("lt-head").textContent = "Open it at " + fmtT(next.a);
-      $("lt-sub").textContent = "Next betting window " + fmtT(next.s) + "–" + fmtT(next.b) + " (" + (mins < 60 ? "in " + mins + " min" : "in " + Math.floor(mins / 60) + " h " + (mins % 60) + " min") + "). It can sleep until then.";
+      $("lt-sub").textContent = "Bets " + fmtT(next.s) + "–" + fmtT(next.b) + " · " + (mins < 60 ? "in " + mins + " min" : "in " + Math.floor(mins / 60) + " h " + (mins % 60) + " min") + " · it can sleep till then";
     } else {
-      $("lt-head").textContent = "Nothing to bet right now";
-      $("lt-sub").textContent = "No betting windows in the schedule. The laptop can sleep.";
+      $("lt-head").textContent = "Nothing to bet";
+      $("lt-sub").textContent = "No games in the schedule. The laptop can sleep.";
     }
 
     // Day strip: from 1 hour ago to 20 hours ahead. Finished windows are left out.
@@ -535,20 +581,21 @@ body.stadium #ticker { cursor: pointer; }
     if (!d.cur || !d.cur.length) curBox.innerHTML = '<div class="empty">No open bets right now.</div>';
     for (const b of d.cur || []) {
       const el = document.createElement("div"); el.className = "bet";
-      const t = document.createElement("div"); t.className = "t"; t.textContent = b.t;
+      const t = document.createElement("div"); t.className = "t";
+      t.append(tagEl(b.k), document.createTextNode(b.t));
       const st = document.createElement("span");
       st.className = "st " + (b.st === "win" ? "win" : b.st === "lost" ? "lost" : "unk");
-      st.textContent = b.st === "win" ? (b.decided ? "Won · awaiting payout" : "Winning") : b.st === "lost" ? "Losing" : "No live score";
+      st.textContent = b.st === "win" ? (b.decided ? "Won · paying out" : "Winning") : b.st === "lost" ? "Losing" : "No live score";
       t.appendChild(st);
       const sc = document.createElement("div"); sc.className = "sc"; sc.textContent = b.sc || "–";
       const l = document.createElement("div"); l.className = "l";
-      const per = b.p === "HT" ? "half-time" : b.p === "1H" ? "1st half" : b.p === "2H" ? "2nd half" : (b.p || "");
-      l.textContent = b.l + " · " + money(b.c) + " to win " + money(b.win) + (per ? " · " + per + (b.min && b.p !== "HT" ? " " + b.min + "'" : "") : "");
+      const per = b.p === "HT" ? "HT" : (b.p === "1H" || b.p === "2H") ? (b.min ? b.min + "'" : b.p) : (b.p || "");
+      l.textContent = b.l + " @" + Math.round(b.px * 100) + "¢ · " + money(b.c) + " → +" + money(b.win) + (per ? " · " + per : "");
       const nd = document.createElement("div"); nd.className = "need"; nd.textContent = b.need || "";
       el.append(t, sc, l, nd);
       if (b.cap != null && b.st !== "lost") {                    // goals to spare, as pips
         const pp = document.createElement("div"); pp.className = "pips" + (b.left === 0 ? " edge-of-seat" : "");
-        pp.append(document.createTextNode(b.left === 0 ? "On the edge: no goals to spare " : "Goals to spare "));
+        pp.append(document.createTextNode(b.left === 0 ? "No goals to spare " : "Goals to spare "));
         const shown = Math.min(Math.max(b.left, 0), 5);
         for (let i = 0; i < Math.max(shown, 1); i++) { const pip = document.createElement("span"); pip.className = "pip" + (i < shown ? " on" : ""); pp.appendChild(pip); }
         el.appendChild(pp);
@@ -556,7 +603,7 @@ body.stadium #ticker { cursor: pointer; }
       if (b.dr != null) {                                        // how open the game looked when Autopilot bet
         const lim = d.dlim || 1.5, max = 3, pos = (v) => Math.min(100, (Math.min(v, max) / max) * 100);
         const g = document.createElement("div"); g.className = "gauge";
-        g.innerHTML = '<div>Danger at bet time: <strong>' + b.dr.toFixed(1) + 'x</strong> a normal game (limit ' + lim + 'x)</div>' +
+        g.innerHTML = '<div>Danger when bet: <strong>' + b.dr.toFixed(1) + 'x</strong> normal (limit ' + lim + 'x)</div>' +
           '<div class="track"><span class="limit" style="left:' + pos(lim) + '%"></span><span class="needle" style="left:0%"></span></div>' +
           '<div class="scale"><span>calm</span><span>normal</span><span>open</span></div>';
         el.appendChild(g);
@@ -584,21 +631,21 @@ body.stadium #ticker { cursor: pointer; }
       const tb = document.createElement("table"); tb.className = "today";
       for (const b of d.done) {
         const tr = document.createElement("tr");
-        const a = document.createElement("td"); a.textContent = b.t;
-        const m = document.createElement("span"); m.className = "m"; m.textContent = b.l + " @ " + Math.round(b.px * 100) + "¢ · " + fmtT(b.at); a.appendChild(m);
+        const a = document.createElement("td"); a.append(tagEl(b.k), document.createTextNode((b.tm || b.t) + " " + b.l));
+        const m = document.createElement("span"); m.className = "m"; m.textContent = "@" + Math.round(b.px * 100) + "¢ · " + money(b.c) + " · " + fmtT(b.at); a.appendChild(m);
         if (b.fs != null && b.sp != null) {                     // how close it got
           const c = document.createElement("span"); c.className = "close" + (b.sp < 0 ? " over" : "");
-          c.append(document.createTextNode("Final " + b.fs + " · " + (b.sp > 0 ? b.sp + " to spare " : b.sp === 0 ? "right on the limit " : -b.sp + " over ")));
+          c.append(document.createTextNode("Final " + b.fs + " · " + (b.sp > 0 ? b.sp + " to spare " : b.sp === 0 ? "0 to spare " : -b.sp + " over ")));
           for (let i = 0; i < Math.min(Math.abs(b.sp), 5); i++) { const pip = document.createElement("span"); pip.className = "pip on"; c.appendChild(pip); }
           a.appendChild(c);
         }
-        const r = document.createElement("td"); r.className = "r " + (b.r === "won" ? "pos" : "neg"); r.textContent = (b.r === "won" ? "Won " : "Lost ") + money(b.p, true);
+        const r = document.createElement("td"); r.className = "r " + (b.r === "won" ? "pos" : "neg"); r.textContent = (b.r === "won" ? "✅ " : "❌ ") + money(b.p, true);
         tr.append(a, r); tb.appendChild(tr);
       }
       const tot = d.pnl_today;                                   // all of today's bets, not just the ones listed
       const n = d.done_n || d.done.length;
       const tr = document.createElement("tr");
-      tr.innerHTML = '<td><strong>Total today</strong><span class="m">' + n + " bet" + (n === 1 ? "" : "s") + (n > d.done.length ? " · latest " + d.done.length + " shown" : "") + "</span></td>";
+      tr.innerHTML = '<td><strong>Total today</strong><span class="m">' + n + " bet" + (n === 1 ? "" : "s") + " · " + (d.lost_today || 0) + " lost" + (n > d.done.length ? " · latest " + d.done.length + " shown" : "") + "</span></td>";
       const r = document.createElement("td"); r.className = "r " + (tot >= 0 ? "pos" : "neg"); r.textContent = money(Math.round(tot * 100) / 100, true); tr.appendChild(r);
       tb.appendChild(tr); td.innerHTML = ""; td.appendChild(tb);
     }
@@ -607,10 +654,11 @@ body.stadium #ticker { cursor: pointer; }
     countUp($("bal"), d.bal);
     away(d); chart(d); notifUI();
     if (document.body.classList.contains("stadium")) ticker(d);
-    const pt = $("pt"); pt.textContent = money(d.pnl_today, true); pt.className = "v " + (d.pnl_today > 0 ? "pos" : d.pnl_today < 0 ? "neg" : "");
-    const pa = $("pa"); pa.textContent = money(d.pnl, true); pa.className = "v " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
-    $("nb").textContent = d.n + (d.lost ? " · " + d.lost + " lost" : " · 0 lost");
-    $("edge").textContent = "Is it working? " + (d.edge || "");
+    const pt = $("pt"); pt.innerHTML = ""; pt.className = "v2 " + (d.pnl_today > 0 ? "pos" : d.pnl_today < 0 ? "neg" : "");
+    pt.append(document.createTextNode(money(d.pnl_today, true)), el("small", "", (d.n_today || 0) - (d.lost_today || 0) + "W " + (d.lost_today || 0) + "L"));
+    const pa = $("pa"); pa.innerHTML = ""; pa.className = "v2 " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
+    pa.append(document.createTextNode(money(d.pnl, true)), el("small", "", (d.n || 0) + " bets · " + (d.lost || 0) + "L"));
+    kinds(d); fadeCard(d); review(d);
 
     // Withdrawal
     const wd = d.wd;
@@ -627,6 +675,50 @@ body.stadium #ticker { cursor: pointer; }
 
   }
 
+
+  // ---- kinds of bet (Nov 7): Safe (near-certain, 95-99¢) and Fade (against small sellers)
+  function tagEl(k) { const t = document.createElement("span"); t.className = "tag " + (k === "f" ? "fade" : "safe"); t.textContent = k === "f" ? "FADE" : "SAFE"; return t; }
+  const vdClass = (v) => /^Working/.test(v || "") ? "vd good" : /^Not working/.test(v || "") ? "vd bad" : "vd";
+  function kinds(d) {
+    const box = $("kinds"); box.innerHTML = "";
+    const K = d.k || {};
+    for (const [key, k] of [["safe", K.safe], ["fade", K.fade]]) {
+      if (!k) continue;
+      const c = el("div", "kind"), top = el("div", "top");
+      top.append(tagEl(key === "fade" ? "f" : "s"), el("span", "s", key === "fade" ? (k.paused ? "paused" : k.off ? "off" : Math.round(k.stake * 100) + "% stake") : Math.round(k.stake * 100) + "% stake"));
+      const n = el("div", "n " + (k.p > 0 ? "pos" : k.p < 0 ? "neg" : ""), money(k.p, true));
+      const s = el("div", "s", k.n + " bets · " + k.l + " lost" + (k.n ? " (" + k.x + " expected)" : ""));
+      const t = el("div", "s", "Today " + (k.nt - k.lt) + "W " + k.lt + "L " + money(k.pt, true));
+      c.append(top, n, s, t, el("span", vdClass(k.v), k.v || ""));
+      box.appendChild(c);
+    }
+  }
+  function fadeCard(d) {
+    const f = (d.k || {}).fade;
+    if (!f) { $("fade").hidden = true; return; }
+    $("fade").hidden = false;
+    if (f.rule) $("fd-rule").textContent = "Bets “no more goals” against small sellers who overpay for a late goal: " + f.rule + ".";
+    $("fd-rec").textContent = f.n ? (f.n - f.l) + "W " + f.l + "L" : "No bets yet";
+    $("fd-exp").textContent = f.n ? "Prices expected " + f.x + " losses" : "Starts with the next match";
+    const fp = $("fd-p"); fp.textContent = money(f.p, true); fp.className = "v " + (f.p > 0 ? "pos" : f.p < 0 ? "neg" : "");
+    $("fd-today").textContent = "Today " + (f.nt - f.lt) + "W " + f.lt + "L " + money(f.pt, true) + (f.n ? " · " + f.v : "");
+    const pct = Math.min(100, Math.round(f.n / (f.prove || 40) * 100));
+    $("fd-stake").textContent = "Stake " + Math.round(f.stake * 100) + "% of balance";
+    $("fd-step").textContent = f.n >= (f.prove || 40) ? (f.stake >= 0.3 ? "Stepped up to 30%" : "Not ahead of prices: stays 20%") : f.n + " / " + (f.prove || 40) + " bets to 30%";
+    $("fd-fill").style.width = pct + "%"; $("fd-bar").setAttribute("aria-valuenow", pct);
+    const al = $("fd-alert");
+    if (f.paused) { al.hidden = false; al.textContent = "Paused itself: losing more than its prices allow. Safe bets carry on. Ask Claude."; }
+    else if (f.off) { al.hidden = false; al.textContent = "Switched off in fade.json."; }
+    else al.hidden = true;
+  }
+  function review(d) {
+    const r = d.rv, box = $("rv-body");
+    if (!r) return;
+    box.innerHTML = "";
+    box.append(el("div", "sub", new Date(r.at * 1000).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · " + fmtT(r.at) + " · " + ago(r.at)),
+               el("div", "rv-head", r.head || ""));
+    if (r.idea) { const i = el("div", "rv-idea"); i.append(el("div", "k", "New idea tested"), el("div", "", r.idea + " → " + (r.verdict || ""))); box.appendChild(i); }
+  }
 
   // ================= GAME LAYER =================
   const store = { get(k, dflt) { try { const v = localStorage.getItem(k); return v == null ? dflt : JSON.parse(v); } catch (e) { return dflt; } },
@@ -834,7 +926,8 @@ body.stadium #ticker { cursor: pointer; }
     if (!d) return;
     const bits = ["AUTOPILOT", "BALANCE " + money(d.bal), "TODAY " + money(d.pnl_today, true), "ALL TIME " + money(d.pnl, true),
                   (d.n || 0) + " BETS · " + (d.lost || 0) + " LOST"];
-    for (const b of d.cur || []) bits.push("LIVE: " + b.t + " " + (b.sc || "") + " " + (b.p === "2H" || b.p === "1H" ? (b.min || "") + "'" : b.p || "") + " · " + b.l);
+    if (d.k && d.k.fade) bits.push("FADE " + (d.k.fade.n - d.k.fade.l) + "W " + d.k.fade.l + "L " + money(d.k.fade.p, true));
+    for (const b of d.cur || []) bits.push((b.k === "f" ? "FADE: " : "LIVE: ") + b.t + " " + (b.sc || "") + " " + (b.p === "2H" || b.p === "1H" ? (b.min || "") + "'" : b.p || "") + " · " + b.l);
     if (d.wd) bits.push("NEXT WITHDRAWAL AT " + money(d.wd.target));
     if (typeof goals === "number" && goals) bits.push("YOUR GOALS THIS VISIT: " + goals);
     $("ticker-run").textContent = bits.join("   ⚽   ") + "   ⚽   ";
@@ -1072,7 +1165,7 @@ body.stadium #ticker { cursor: pointer; }
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-11-03b";
+  const VERSION = "2026-11-07a";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
@@ -1129,10 +1222,15 @@ body.stadium #ticker { cursor: pointer; }
     "uel": "Europa League", "uecl": "Conference League", "dfb": "DFB-Pokal", "lib": "Libertadores" };
   const STAT_ROWS = [["xG (expected goals)", 0, 2], ["Shots on target", 1], ["Shots in the box", 2], ["Total shots", 3], ["Corners", 4], ["Keeper saves", 5], ["Red cards", 6]];
   const fmtD = (s) => new Date(s * 1000).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " · " + fmtT(s);
-  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  let hist = [], histMore = false, histBusy = false;
+  let hist = [], histMore = false, histBusy = false, histFilter = "all";
+  document.querySelectorAll("#hist-filters button").forEach((bt) => bt.addEventListener("click", () => {
+    histFilter = bt.dataset.f;
+    document.querySelectorAll("#hist-filters button").forEach((x) => x.setAttribute("aria-pressed", String(x === bt)));
+    renderHist();
+  }));
 
   function placedNotice(b) {                                  // the "bet placed" notification, as it was sent
+    if (b.bn) { const lines = b.bn.split("\n"); return [lines[0], lines.slice(1).join("\n")]; }   // Nov 7 on: stored
     const [home, away] = b.t.split(" – ");
     const title = (b.md === "live" ? "LIVE bet placed" : "SHADOW bet") + ": " + b.l + " · " + home + " " + b.sc + " " + (away || "") + " · " + b.m + "'";
     const body = b.q + " contracts @ " + (b.px * 100).toFixed(1) + "¢ = $" + b.c.toFixed(2) + " at risk, wins $" + Math.max(0, b.q - b.c).toFixed(2) + ".\n" +
@@ -1147,13 +1245,14 @@ body.stadium #ticker { cursor: pointer; }
     const det = el("details", "hb"), sm = el("summary");
     const r = el("span", "r " + (b.r === "won" ? "pos" : b.r === "lost" ? "neg" : ""),
       b.r === "won" ? "Won " + money(b.p, true) : b.r === "lost" ? "Lost " + money(b.p, true) : b.unk ? "Unconfirmed" : "Open");
-    sm.append(el("span", "t", b.t), r,
+    const tt = el("span", "t"); tt.append(tagEl(b.k), document.createTextNode(b.t));
+    sm.append(tt, r,
       el("span", "m", fmtD(b.at) + " · " + b.l + " @ " + Math.round(b.px * 100) + "¢ · " + b.sc + " at " + b.m + "'" + (LEAGUES[b.lg] ? " · " + LEAGUES[b.lg] : "")));
     det.appendChild(sm);
     const body = el("div", "body");
     // quick facts
     const f = el("div", "facts");
-    f.append(el("span", "", "Lost only if " + b.gn + "+ more goals"),
+    f.append(el("span", "", "Lost if " + b.gn + "+ more goal" + (b.gn > 1 ? "s" : "")),
       el("span", b.pst != null && b.pst >= 9 ? "hot" : "", "~" + b.ml + " min left" + (b.pst != null ? " + PST " + Math.round(b.pst) : "")));
     if (b.dr != null) f.append(el("span", b.dr > 1.2 ? "hot" : "", "Danger " + b.dr.toFixed(2) + "x a normal game"));
     if (b.fs) f.append(el("span", b.sp < 0 ? "hot" : "", "Final " + b.fs + " · " + (b.sp > 0 ? b.sp + " to spare" : b.sp === 0 ? "right on the limit" : (-b.sp) + " over")));
@@ -1175,7 +1274,7 @@ body.stadium #ticker { cursor: pointer; }
         tbody.appendChild(tr);
       }
       tb.appendChild(tbody); body.appendChild(tb);
-    } else body.appendChild(el("div", "empty", "No match stats were recorded for this bet (the stats check started on Oct 18)."));
+    } else body.appendChild(el("div", "empty", b.k === "f" ? "Fade bets don't use match stats." : "No match stats were recorded for this bet (the stats check started on Oct 18)."));
     // the notifications themselves
     const [pt, pb] = placedNotice(b);
     body.appendChild(noticeCard("Bet notification · " + fmtT(b.at), pt, pb));
@@ -1185,8 +1284,9 @@ body.stadium #ticker { cursor: pointer; }
   }
   function renderHist() {
     const box = $("hist"); box.innerHTML = "";
-    if (!hist.length) { box.appendChild(el("div", "empty", "No bets yet.")); }
-    for (const b of hist) box.appendChild(histItem(b));
+    const shown = hist.filter((b) => histFilter === "all" || (histFilter === "fade") === (b.k === "f"));
+    if (!shown.length) { box.appendChild(el("div", "empty", hist.length ? "None of these in the bets loaded so far." : "No bets yet.")); }
+    for (const b of shown) box.appendChild(histItem(b));
     $("hist-more").hidden = !histMore;
     $("hist-load").textContent = hist.length ? "Refresh history" : "Show recent bets";
   }
