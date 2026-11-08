@@ -376,7 +376,7 @@ body.stadium #ticker { cursor: pointer; }
       <div class="tile"><div class="k">Profit</div><div class="v" id="fd-p">–</div><div class="sub" id="fd-today"></div></div>
     </div>
     <div class="row" style="margin-top:12px"><span id="fd-stake">–</span><span id="fd-step"></span></div>
-    <div class="bar gold" role="progressbar" aria-label="Fade bets until the stake can step up to 30%" aria-valuemin="0" aria-valuemax="100" id="fd-bar"><div id="fd-fill" style="width:0%"></div></div>
+    <div class="bar gold" role="progressbar" aria-label="Fade bets until the record says something (40)" aria-valuemin="0" aria-valuemax="100" id="fd-bar"><div id="fd-fill" style="width:0%"></div></div>
     <div class="alert warn" id="fd-alert" hidden></div>
   </section>
 
@@ -704,7 +704,10 @@ body.stadium #ticker { cursor: pointer; }
     $("fd-today").textContent = "Today " + (f.nt - f.lt) + "W " + f.lt + "L " + money(f.pt, true) + (f.n ? " · " + f.v : "");
     const pct = Math.min(100, Math.round(f.n / (f.prove || 40) * 100));
     $("fd-stake").textContent = "Stake " + Math.round(f.stake * 100) + "% of balance";
-    $("fd-step").textContent = f.n >= (f.prove || 40) ? (f.stake >= 0.3 ? "Stepped up to 30%" : "Not ahead of prices: stays 20%") : f.n + " / " + (f.prove || 40) + " bets to 30%";
+    const prove = f.prove || 40, pc = x => Math.round(x * 100) + "%";
+    $("fd-step").textContent = f.up   // a step-up stake is set (none since Nov 7: fixed 20%)
+      ? (f.n >= prove ? (f.stake >= f.up ? "Stepped up to " + pc(f.up) : "Not ahead of prices: stays " + pc(f.stake)) : f.n + " / " + prove + " bets to " + pc(f.up))
+      : (f.n >= prove ? "Enough bets to judge: " + f.v : f.n + " / " + prove + " bets before the record says much");
     $("fd-fill").style.width = pct + "%"; $("fd-bar").setAttribute("aria-valuenow", pct);
     const al = $("fd-alert");
     if (f.paused) { al.hidden = false; al.textContent = "Paused itself: losing more than its prices allow. Safe bets carry on. Ask Claude."; }
@@ -1165,7 +1168,7 @@ body.stadium #ticker { cursor: pointer; }
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-11-07a";
+  const VERSION = "2026-11-07b";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
