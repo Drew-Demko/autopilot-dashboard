@@ -20,7 +20,7 @@
 :root {
   --bg: #f3f6f4; --panel: #ffffff; --ink: #14201a; --muted: #5b6b62; --line: #dbe3de;
   --green: #1f8a58; --green-soft: #d6efe2; --amber: #b7791f; --amber-soft: #f8ecd5; --red: #c0392b; --red-soft: #f7dcd8;
-  --night: #e3e8f2; --now: #14201a; --ball: #ffffff; --gold: #c99a1e; --gold-soft: #f7edd2; --green-score: #7ff0b4; --stripe: #e9efeb; --pitch1: #2f8f5b; --pitch2: #1f6e43;
+  --night: #e3e8f2; --now: #14201a; --ball: #ffffff; --gold: #c99a1e; --gold-soft: #f7edd2; --blue: #2463a6; --blue-soft: #dbe8f6; --green-score: #7ff0b4; --stripe: #e9efeb; --pitch1: #2f8f5b; --pitch2: #1f6e43;
   --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
@@ -29,13 +29,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
     --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
-    --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; --gold: #e8c45a; --gold-soft: #3a3115; --green-score: #1f8a58; --stripe: #121a16; --pitch1: #2f8f5b; --pitch2: #1f6e43; color-scheme: dark;
+    --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; --gold: #e8c45a; --gold-soft: #3a3115; --blue: #7cb3ff; --blue-soft: #16263d; --green-score: #1f8a58; --stripe: #121a16; --pitch1: #2f8f5b; --pitch2: #1f6e43; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0e1411; --panel: #161f1a; --ink: #e8efe9; --muted: #93a39a; --line: #26332c;
   --green: #3ccf8a; --green-soft: #173a29; --amber: #e8b04f; --amber-soft: #3a2e17; --red: #ff7b6b; --red-soft: #3d1d19;
-  --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; --gold: #e8c45a; --gold-soft: #3a3115; --green-score: #1f8a58; --stripe: #121a16; --pitch1: #2f8f5b; --pitch2: #1f6e43; color-scheme: dark;
+  --night: #1b2233; --now: #e8efe9; --ball: #e8efe9; --gold: #e8c45a; --gold-soft: #3a3115; --blue: #7cb3ff; --blue-soft: #16263d; --green-score: #1f8a58; --stripe: #121a16; --pitch1: #2f8f5b; --pitch2: #1f6e43; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -187,6 +187,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 .tag { display: inline-block; font: 700 11px/1 var(--body); letter-spacing: .06em; padding: 4px 7px; border-radius: 6px; vertical-align: 2px; margin-right: 6px; }
 .tag.safe { background: var(--green-soft); color: var(--green); }
 .tag.fade { background: var(--gold-soft); color: var(--gold); }
+.tag.lock { background: var(--blue-soft); color: var(--blue); }
+.lk-ways { margin-top: 12px; display: grid; gap: 6px; }
+.lk-ways .row b { color: var(--ink); font-weight: 600; }
+.lk-h { font: 600 13px/1.2 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+#locks table.today td.r .m { font-weight: 400; }
+#locks .watch { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 .fade-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .bar.gold > div { background: var(--gold); }
 .alert.warn { background: var(--amber-soft); color: var(--amber); }
@@ -378,6 +384,30 @@ body.stadium #ticker { cursor: pointer; }
     <div class="row" style="margin-top:12px"><span id="fd-stake">–</span><span id="fd-step"></span></div>
     <div class="bar gold" role="progressbar" aria-label="Fade bets until the record says something (40)" aria-valuemin="0" aria-valuemax="100" id="fd-bar"><div id="fd-fill" style="width:0%"></div></div>
     <div class="alert warn" id="fd-alert" hidden></div>
+  </section>
+
+  <section id="locks" aria-labelledby="h-locks" hidden>
+    <h2 id="h-locks"><span class="tag lock">SHADOW</span>Locks</h2>
+    <div class="sub">Two bets in one match that pay back $1 whatever happens, for less than $1 after fees. Shadow bets place nothing: they record what a fast trader would have made.</div>
+    <div class="fade-grid">
+      <div class="tile"><div class="k">Shadow profit · 7 days</div><div class="v" id="lk-p">–</div><div class="sub" id="lk-p2"></div></div>
+      <div class="tile"><div class="k">Locks · 7 days</div><div class="v" id="lk-n">–</div><div class="sub" id="lk-n2"></div></div>
+    </div>
+    <div class="lk-ways" id="lk-ways"></div>
+    <div class="lk-h">Latest shadow bets</div>
+    <table class="today" id="lk-list"></table>
+    <div class="sub watch" id="lk-watch"></div>
+  </section>
+
+  <section id="sweep" aria-labelledby="h-sweep" hidden>
+    <h2 id="h-sweep"><span class="tag lock">RECORD ONLY</span>Post-whistle sweeper</h2>
+    <div class="sub">After the final whistle every winning side is worth $1. Autopilot checks each finished match and records winners still offered below 99¢. It bets nothing yet: this shows whether it would be worth it.</div>
+    <div class="fade-grid">
+      <div class="tile"><div class="k">Could have made · 7 days</div><div class="v" id="sw-p">–</div><div class="sub" id="sw-p2"></div></div>
+      <div class="tile"><div class="k">Cheap winners · 7 days</div><div class="v" id="sw-n">–</div><div class="sub" id="sw-n2"></div></div>
+    </div>
+    <div class="lk-h">Latest finds</div>
+    <table class="today" id="sw-list"></table>
   </section>
 
   <section id="laptop" aria-labelledby="h-laptop">
@@ -658,7 +688,7 @@ body.stadium #ticker { cursor: pointer; }
     pt.append(document.createTextNode(money(d.pnl_today, true)), el("small", "", (d.n_today || 0) - (d.lost_today || 0) + "W " + (d.lost_today || 0) + "L"));
     const pa = $("pa"); pa.innerHTML = ""; pa.className = "v2 " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
     pa.append(document.createTextNode(money(d.pnl, true)), el("small", "", (d.n || 0) + " bets · " + (d.lost || 0) + "L"));
-    kinds(d); fadeCard(d); review(d);
+    kinds(d); fadeCard(d); locksCard(d); sweepCard(d); review(d);
 
     // Withdrawal
     const wd = d.wd;
@@ -713,6 +743,74 @@ body.stadium #ticker { cursor: pointer; }
     if (f.paused) { al.hidden = false; al.textContent = "Paused itself: losing more than its prices allow. Safe bets carry on. Ask Claude."; }
     else if (f.off) { al.hidden = false; al.textContent = "Switched off in fade.json."; }
     else al.hidden = true;
+  }
+  function locksCard(d) {
+    // LOCKS (Nov 7 evening): the lock watcher's shadow bets. r = [at, teams, minute, label, lasted s, best c/set,
+    // you at once, $500 at once, you thinner first, $500 thinner first, missed]
+    const k = d.lk, box = $("locks");
+    if (!k) { box.hidden = true; return; }
+    box.hidden = false;
+    const big = "$" + (k.sz || 500), pn = (e, v) => { e.className = e.className.replace(/ ?(pos|neg)/g, "") + (v > 0 ? " pos" : v < 0 ? " neg" : ""); };
+    const dur = (s) => s == null ? "?" : s < 10 ? s.toFixed(1) + "s" : s < 60 ? Math.round(s) + "s" : Math.floor(s / 60) + "m " + Math.round(s % 60) + "s";
+    const p = $("lk-p");
+    if (k.n7) {
+      p.textContent = money(k.sm, true); pn(p, k.sm);
+      $("lk-p2").textContent = big + " a lock, thinner side first · you " + money(k.sy, true);
+    } else { p.textContent = "–"; pn(p, 0); $("lk-p2").textContent = "No shadow bets yet"; }
+    $("lk-n").textContent = k.l7;
+    $("lk-n2").textContent = k.n7 + " shadow bet" + (k.n7 === 1 ? "" : "s") + " · " + k.h7 + " caught · " + k.g7 + " match" + (k.g7 === 1 ? "" : "es");
+    const ways = $("lk-ways"); ways.innerHTML = "";
+    if (k.n7) {
+      [["Both orders at once", k.m, k.y], ["Thinner side first", k.sm, k.sy]].forEach(([how, b, y]) => {
+        const r = el("div", "row"); r.appendChild(el("b", null, how));
+        r.appendChild(el("span", "num", big + " " + money(b, true) + " · you " + money(y, true))); ways.appendChild(r);
+      });
+    }
+    const tb = $("lk-list"); tb.innerHTML = "";
+    if (!k.r || !k.r.length) {
+      const tr = el("tr"), td = el("td", null, "None yet. Each one also comes as a notification when the lock ends.");
+      td.style.color = "var(--muted)"; tr.appendChild(td); tb.appendChild(tr);
+    }
+    (k.r || []).forEach((x) => {
+      const [at, tm, mn, lab, lasted, c, y, m, sy, sm, missed] = x;
+      const tr = el("tr"), a = el("td"), r = el("td", "r");
+      a.appendChild(el("b", null, tm + " " + mn + "'"));
+      a.appendChild(el("span", "m", lab + " · lasted " + dur(lasted) + " · +" + c + "¢/set · " + fmtT(at)));
+      if (missed) { r.textContent = "missed"; r.style.color = "var(--muted)"; r.appendChild(el("span", "m", "prices moved first")); }
+      else {
+        const v = sm != null ? sm : m, yy = sy != null ? sy : y;
+        r.textContent = money(v, true); pn(r, v); r.appendChild(el("span", "m", "you " + money(yy, true)));
+      }
+      tr.appendChild(a); tr.appendChild(r); tb.appendChild(tr);
+    });
+    let w = k.w ? "Watching " + k.w + " match" + (k.w === 1 ? "" : "es") + " now (" + (k.c || 0).toLocaleString() + " combinations)" : "No match being watched right now";
+    if (k.nr) w += " · closest in 24 h: " + (k.nr[1] > 0 ? "+" : k.nr[1] < 0 ? "−" : "") + Math.abs(k.nr[1]) + "¢ per set, " + k.nr[0] + " (" + k.nr[2] + ")";
+    $("lk-watch").textContent = w;
+  }
+  function sweepCard(d) {
+    // SWEEPER (Nov 8 night): record-only post-whistle sweeper. r = [at, teams, winning side, price c, contracts <= 98c,
+    // minutes after full time]
+    const k = d.sw, box = $("sweep");
+    if (!k) { box.hidden = true; return; }
+    box.hidden = false;
+    const p = $("sw-p");
+    p.textContent = k.m7 ? money(k.p7, true) : "–";
+    p.className = p.className.replace(/ ?(pos|neg)/g, "") + (k.p7 > 0 ? " pos" : "");
+    $("sw-p2").textContent = k.m7 ? "buying every cheap winner at its price, after fees" : "No finished match checked yet";
+    $("sw-n").textContent = k.m7 ? k.k7 : "–";
+    $("sw-n2").textContent = k.m7 ? "in " + k.c7 + " of " + k.m7 + " match" + (k.m7 === 1 ? "" : "es") + " checked · " + (k.min || 30) + " min after each final whistle" : "Starts after the next full time";
+    const tb = $("sw-list"); tb.innerHTML = "";
+    if (!k.r || !k.r.length) {
+      const tr = el("tr"), td = el("td", null, k.m7 ? "No winner offered below 99¢ yet." : "Nothing yet.");
+      td.style.color = "var(--muted)"; tr.appendChild(td); tb.appendChild(tr);
+    }
+    (k.r || []).forEach(([at, tm, side, c, q, mins]) => {
+      const tr = el("tr"), a = el("td"), r = el("td", "r");
+      a.appendChild(el("b", null, tm));
+      a.appendChild(el("span", "m", side + " · " + mins + " min after full time · " + fmtT(at)));
+      r.textContent = c + "¢"; r.appendChild(el("span", "m", q.toLocaleString() + " at ≤98¢"));
+      tr.appendChild(a); tr.appendChild(r); tb.appendChild(tr);
+    });
   }
   function review(d) {
     const r = d.rv, box = $("rv-body");
@@ -1168,7 +1266,7 @@ body.stadium #ticker { cursor: pointer; }
     }
   }
   // Self-update: a home-screen copy can be stale, so check for a newer version of this page and reload into it.
-  const VERSION = "2026-11-07b";
+  const VERSION = "2026-11-07c";
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then((r) => r.text()).then((t) => {
     const m = t.match(/const VERSION = "([^"]+)"/);
     if (m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1] + location.hash);
