@@ -181,6 +181,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--green); out
 .kind .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .kind .n { font: 700 22px/1.1 var(--display); font-variant-numeric: tabular-nums; margin-top: 6px; }
 .kind .s { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.s.cpd, #pa-c .s { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.s.cpd b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .kind .vd { display: inline-block; font-size: 12px; font-weight: 600; margin-top: 8px; padding: 2px 8px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); color: var(--muted); }
 .kind .vd.good { background: var(--green-soft); color: var(--green); border-color: transparent; }
 .kind .vd.bad { background: var(--red-soft); color: var(--red); border-color: transparent; }
@@ -358,7 +360,7 @@ body.stadium #ticker { cursor: pointer; }
       <div><div class="k">Balance</div><div class="big-num" id="bal">–</div></div>
       <div>
         <div class="k">Today</div><div class="v2" id="pt">–</div>
-        <div class="k" style="margin-top:6px">All time</div><div class="v2" id="pa">–</div>
+        <div class="k" style="margin-top:6px">All time</div><div class="v2" id="pa">–</div><div id="pa-c"></div>
       </div>
     </div>
     <div class="kinds" id="kinds"></div>
@@ -497,6 +499,13 @@ body.stadium #ticker { cursor: pointer; }
   const fmtT = (s) => new Date(s * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(" ", "").toLowerCase();
   const money = (v, sign) => v == null ? "–" : (sign && v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toFixed(2);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  // Cents made per $1 bet (Nov 14): profit ÷ money staked. Bet size can't skew it, unlike the $ total.
+  const cents = (c) => (c > 0 ? "+" : c < 0 ? "−" : "") + Math.abs(c).toFixed(Math.abs(c) < 1 ? 2 : 1) + "¢";
+  function perDollar(c) {
+    const box = el("div", "s cpd");
+    box.append(el("b", c > 0 ? "pos" : c < 0 ? "neg" : "", cents(c)), document.createTextNode(" per $1 bet"));
+    return box;
+  }
   const ago = (s) => { const m = Math.round((Date.now() / 1000 - s) / 60); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.floor(m / 60) + " h " + (m % 60) + " min ago"; };
 
   // Channel: from the link (#channel), remembered on this device.
@@ -688,6 +697,8 @@ body.stadium #ticker { cursor: pointer; }
     pt.append(document.createTextNode(money(d.pnl_today, true)), el("small", "", (d.n_today || 0) - (d.lost_today || 0) + "W " + (d.lost_today || 0) + "L"));
     const pa = $("pa"); pa.innerHTML = ""; pa.className = "v2 " + (d.pnl > 0 ? "pos" : d.pnl < 0 ? "neg" : "");
     pa.append(document.createTextNode(money(d.pnl, true)), el("small", "", (d.n || 0) + " bets · " + (d.lost || 0) + "L"));
+    const pc = $("pa-c"); pc.innerHTML = "";
+    if (d.cpd != null) pc.appendChild(perDollar(d.cpd));
     kinds(d); fadeCard(d); locksCard(d); sweepCard(d); review(d);
 
     // Withdrawal
@@ -719,7 +730,9 @@ body.stadium #ticker { cursor: pointer; }
       const n = el("div", "n " + (k.p > 0 ? "pos" : k.p < 0 ? "neg" : ""), money(k.p, true));
       const s = el("div", "s", k.n + " bets · " + k.l + " lost" + (k.n ? " (" + k.x + " expected)" : ""));
       const t = el("div", "s", "Today " + (k.nt - k.lt) + "W " + k.lt + "L " + money(k.pt, true));
-      c.append(top, n, s, t, el("span", vdClass(k.v), k.v || ""));
+      c.append(top, n);
+      if (k.c != null) c.append(perDollar(k.c));
+      c.append(s, t, el("span", vdClass(k.v), k.v || ""));
       box.appendChild(c);
     }
   }
